@@ -14,10 +14,17 @@
                 Manage and track your job postings and opportunities.
             </p>
         </div>
-        <div class="mt-4 flex md:mt-0 md:ml-4">
+        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-2">
             <a href="{{ url_for('jobs_create') }}" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                 <i class="fas fa-plus mr-2"></i>Create New Job
             </a>
+            <form action="{{ url_for('jobs_create') }}" method="POST" enctype="multipart/form-data" class="inline-flex items-center space-x-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <label class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                    <i class="fas fa-file-import mr-2"></i>Import JD PDF
+                    <input type="file" name="jd_pdf" accept="application/pdf" class="hidden" onchange="this.form.submit()" />
+                </label>
+            </form>
         </div>
     </div>
 

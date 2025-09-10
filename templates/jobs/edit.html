@@ -28,6 +28,7 @@
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
             <form method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <!-- Basic Information -->
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>

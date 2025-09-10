@@ -301,6 +301,43 @@ def extract_text_from_pdf(pdf_path):
         print(f"Error extracting text from PDF: {e}")
         return ""
 
+def analyze_job_text_to_fields(text: str) -> dict:
+    """Use OpenAI to extract basic Job fields from OCR'd JD text."""
+    try:
+        prompt = f"""
+        Extract Job fields as a single JSON object with keys:
+        {{
+          "title": "",
+          "company": "",
+          "location": "",
+          "employment_type": "Remote|On-site|Hybrid|Full-time|Part-time|Contract|",
+          "description": "",
+          "requirements": "",
+          "skills_required": "comma-separated skills",
+          "industry": "",
+          "education_required": ""
+        }}
+        Only output valid JSON.
+
+        JD Text:
+        {text[:3000]}
+        """
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "system", "content": "Output only a valid JSON object."}, {"role": "user", "content": prompt}],
+            max_tokens=1000,
+            temperature=0.2,
+        )
+        content = response.choices[0].message.content.strip()
+        start, end = content.find('{'), content.rfind('}')
+        if start != -1 and end != -1:
+            content = content[start:end+1]
+        data = json.loads(content)
+        return data
+    except Exception as e:
+        print(f"OpenAI JD parse error: {e}")
+        return {}
+
 def _safe_parse_json(text: str):
     try:
         return json.loads(text)
@@ -830,6 +867,38 @@ def jobs_index():
 @login_required
 def jobs_create():
     if request.method == 'POST':
+        # Support PDF import via a file input named 'jd_pdf'
+        if 'jd_pdf' in request.files and request.files['jd_pdf'].filename.lower().endswith('.pdf'):
+            pdf_file = request.files['jd_pdf']
+            timestamp = int(datetime.now(timezone.utc).timestamp())
+            filename = secure_filename(f"jd_{timestamp}.pdf")
+            save_path = os.path.join(app.config['UPLOAD_FOLDER'], 'cvs', filename)
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            pdf_file.save(save_path)
+            # OCR to text
+            jd_text = extract_text_from_pdf(save_path)
+            fields = analyze_job_text_to_fields(jd_text)
+            job = Job(
+                title=fields.get('title') or request.form.get('title', ''),
+                description=fields.get('description') or request.form.get('description', ''),
+                company=fields.get('company') or request.form.get('company', ''),
+                location=fields.get('location') or request.form.get('location', ''),
+                employment_type=fields.get('employment_type') or request.form.get('employment_type', ''),
+                requirements=fields.get('requirements') or request.form.get('requirements', ''),
+                benefits=request.form.get('benefits', ''),
+                hiring_quantity=int(request.form.get('hiring_quantity')) if request.form.get('hiring_quantity') else 1,
+                experience_level=request.form.get('experience_level', ''),
+                work_mode=request.form.get('work_mode', ''),
+                industry=fields.get('industry') or request.form.get('industry', ''),
+                skills_required=fields.get('skills_required') or request.form.get('skills_required', ''),
+                education_required=fields.get('education_required') or request.form.get('education_required', ''),
+                user_id=current_user.id
+            )
+            db.session.add(job)
+            db.session.commit()
+            flash('Job imported from PDF successfully!', 'success')
+            return redirect(url_for('jobs_index'))
+
         job = Job(
             title=request.form['title'],
             description=request.form['description'],

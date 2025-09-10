@@ -14,17 +14,24 @@
                 Post a new job opportunity and find the perfect candidate.
             </p>
         </div>
-        <div class="mt-4 flex md:mt-0 md:ml-4">
+        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-2">
             <a href="{{ url_for('jobs_index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                 <i class="fas fa-arrow-left mr-2"></i>Back to Jobs
             </a>
+            <form action="{{ url_for('jobs_create') }}" method="POST" enctype="multipart/form-data" class="inline-flex items-center space-x-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <label class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                    <i class="fas fa-file-import mr-2"></i>Import JD PDF
+                    <input type="file" name="jd_pdf" accept="application/pdf" class="hidden" onchange="this.form.submit()" />
+                </label>
+            </form>
         </div>
     </div>
 
     <!-- Create Form -->
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            <form method="POST" class="space-y-6">
+            <form method="POST" class="space-y-6" enctype="multipart/form-data">
                 <!-- Basic Information -->
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
