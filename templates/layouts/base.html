@@ -462,8 +462,6 @@
                 toast.classList.add('show');
             }, 100);
             
-            // COMMENTED OUT FOR TESTING - Toast will stay visible
-            /*
             // Auto hide with countdown
             if (duration > 0) {
                 const progressBar = toast.querySelector('.toast-progress');
@@ -484,7 +482,6 @@
                 // Store interval ID for cleanup
                 toast.dataset.intervalId = countdown;
             }
-            */
         }
         
         function hideToast(toastId) {
@@ -517,8 +514,6 @@
                 progressBar.style.width = '100%';
                 toast.appendChild(progressBar);
                 
-                // COMMENTED OUT FOR TESTING - Toast will stay visible
-                /*
                 // Start countdown for existing toasts
                 const duration = 5000;
                 let remainingTime = duration;
@@ -537,7 +532,6 @@
                 
                 // Store interval ID
                 toast.dataset.intervalId = countdown;
-                */
             });
         });
         

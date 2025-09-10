@@ -72,13 +72,50 @@
         </div>
     </div>
 
+    <!-- Search and Filter -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <!-- Search Input -->
+                <div class="flex-1">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="Search CVs by name, email, skills..." 
+                               class="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                        <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <!-- Filter Dropdown -->
+                <div class="sm:w-48">
+                    <select id="filterSelect" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                        <option value="">All CVs</option>
+                        <option value="recent">Recent (Last 7 days)</option>
+                        <option value="month">This Month</option>
+                        <option value="with-skills">With Skills</option>
+                        <option value="with-experience">With Experience</option>
+                    </select>
+                </div>
+                
+                <!-- Clear Filters -->
+                <button id="clearFilters" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors duration-200 sm:text-sm">
+                    <i class="fas fa-times mr-2"></i>Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- CV List -->
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
             {% if cvs %}
+                <!-- Results Count -->
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600" id="resultsCount">{{ cvs.total }} CV{{ 's' if cvs.total != 1 else '' }} found</p>
+                </div>
+                
                 <div class="space-y-4">
                     {% for cv in cvs %}
-                    <div class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <div class="cv-item border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                         <div class="flex items-start justify-between">
                             <div class="flex items-start space-x-4">
                                 <!-- Avatar -->
@@ -96,6 +133,7 @@
                                     
                                     <!-- Skills Preview -->
                                     {% if cv.skills %}
+                                        <div class="mt-2 skills" style="display: none;">{{ cv.skills }}</div>
                                         <div class="mt-2">
                                             <div class="flex flex-wrap gap-1">
                                                 {% for skill in cv.skills.split(',')[:5] %}
@@ -111,12 +149,17 @@
                                             </div>
                                         </div>
                                     {% endif %}
+                                    
+                                    <!-- Experience Preview -->
+                                    {% if cv.experience %}
+                                        <div class="mt-2 experience" style="display: none;">{{ cv.experience }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                             
                             <!-- Actions -->
                             <div class="flex items-center space-x-2">
-                                <span class="text-sm text-gray-500">
+                                <span class="text-sm text-gray-500 created-date">
                                     {{ cv.created_at.strftime('%b %d, %Y') }}
                                 </span>
                                 <div class="flex space-x-1">
@@ -229,4 +272,91 @@
         </div>
     </div>
 </div>
+
+<!-- Search and Filter JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const filterSelect = document.getElementById('filterSelect');
+    const clearFilters = document.getElementById('clearFilters');
+    const cvItems = document.querySelectorAll('.cv-item');
+    
+    // Search function
+    function searchCVs() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const filterValue = filterSelect.value;
+        
+        cvItems.forEach(cvItem => {
+            const name = cvItem.querySelector('h3').textContent.toLowerCase();
+            const email = cvItem.querySelector('p').textContent.toLowerCase();
+            const skills = cvItem.querySelector('.skills') ? cvItem.querySelector('.skills').textContent.toLowerCase() : '';
+            const experience = cvItem.querySelector('.experience') ? cvItem.querySelector('.experience').textContent.toLowerCase() : '';
+            const createdDate = cvItem.querySelector('.created-date') ? new Date(cvItem.querySelector('.created-date').textContent) : null;
+            
+            let matchesSearch = true;
+            let matchesFilter = true;
+            
+            // Search filter
+            if (searchTerm) {
+                matchesSearch = name.includes(searchTerm) || 
+                               email.includes(searchTerm) || 
+                               skills.includes(searchTerm) || 
+                               experience.includes(searchTerm);
+            }
+            
+            // Date filter
+            if (filterValue === 'recent' && createdDate) {
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                matchesFilter = createdDate >= sevenDaysAgo;
+            } else if (filterValue === 'month' && createdDate) {
+                const oneMonthAgo = new Date();
+                oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                matchesFilter = createdDate >= oneMonthAgo;
+            } else if (filterValue === 'with-skills') {
+                matchesFilter = skills.trim() !== '';
+            } else if (filterValue === 'with-experience') {
+                matchesFilter = experience.trim() !== '';
+            }
+            
+            // Show/hide CV item
+            if (matchesSearch && matchesFilter) {
+                cvItem.style.display = 'block';
+            } else {
+                cvItem.style.display = 'none';
+            }
+        });
+        
+        // Update results count
+        updateResultsCount();
+    }
+    
+    // Update results count
+    function updateResultsCount() {
+        const visibleItems = Array.from(cvItems).filter(item => item.style.display !== 'none');
+        const resultsCount = document.getElementById('resultsCount');
+        if (resultsCount) {
+            resultsCount.textContent = `${visibleItems.length} CV${visibleItems.length !== 1 ? 's' : ''} found`;
+        }
+    }
+    
+    // Clear filters
+    function clearAllFilters() {
+        searchInput.value = '';
+        filterSelect.value = '';
+        cvItems.forEach(item => {
+            item.style.display = 'block';
+        });
+        updateResultsCount();
+    }
+    
+    // Event listeners
+    searchInput.addEventListener('input', searchCVs);
+    filterSelect.addEventListener('change', searchCVs);
+    clearFilters.addEventListener('click', clearAllFilters);
+    
+    // Initialize results count
+    updateResultsCount();
+});
+</script>
 {% endblock %}

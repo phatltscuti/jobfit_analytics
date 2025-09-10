@@ -18,7 +18,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///jobfit_analytics.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'mysql+pymysql://root:root%40123@dev.scuti.works:3307/hakathon')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -79,11 +79,18 @@ class Job(db.Model):
     description = db.Column(db.Text)
     company = db.Column(db.String(200))
     location = db.Column(db.String(200))
-    salary_range = db.Column(db.String(100))
+    salary_min = db.Column(db.Numeric(10, 2))
+    salary_max = db.Column(db.Numeric(10, 2))
     employment_type = db.Column(db.String(50))
     requirements = db.Column(db.Text)
     benefits = db.Column(db.Text)
     application_deadline = db.Column(db.DateTime)
+    hiring_quantity = db.Column(db.Integer, default=1)
+    experience_level = db.Column(db.String(50))  # Entry, Mid, Senior, Lead
+    work_mode = db.Column(db.String(50))  # Remote, On-site, Hybrid
+    industry = db.Column(db.String(100))
+    skills_required = db.Column(db.Text)
+    education_required = db.Column(db.String(100))
     is_active = db.Column(db.Boolean, default=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -472,18 +479,46 @@ def cvs_delete(cv_id):
 @login_required
 def jobs_index():
     page = request.args.get('page', 1, type=int)
+    
+    # Calculate date ranges
+    now = datetime.now(timezone.utc)
+    week_ago = now - timedelta(days=7)
+    month_ago = now - timedelta(days=30)
+    
     # Filter Jobs by current user or show all if admin
     if current_user.is_admin:
         jobs = Job.query.filter_by(is_active=True).order_by(Job.created_at.desc()).paginate(
             page=page, per_page=10, error_out=False
         )
+        # Get stats for admin (all jobs)
+        this_week_jobs = Job.query.filter(
+            Job.is_active == True,
+            Job.created_at >= week_ago
+        ).count()
+        this_month_jobs = Job.query.filter(
+            Job.is_active == True,
+            Job.created_at >= month_ago
+        ).count()
     else:
         jobs = Job.query.filter(
             ((Job.user_id == current_user.id) | (Job.user_id.is_(None))) & (Job.is_active == True)
         ).order_by(Job.created_at.desc()).paginate(
             page=page, per_page=10, error_out=False
         )
-    return render_template('jobs/index.html', jobs=jobs)
+        # Get stats for user (their jobs only)
+        this_week_jobs = Job.query.filter(
+            ((Job.user_id == current_user.id) | (Job.user_id.is_(None))) & (Job.is_active == True),
+            Job.created_at >= week_ago
+        ).count()
+        this_month_jobs = Job.query.filter(
+            ((Job.user_id == current_user.id) | (Job.user_id.is_(None))) & (Job.is_active == True),
+            Job.created_at >= month_ago
+        ).count()
+    
+    return render_template('jobs/index.html', 
+                         jobs=jobs, 
+                         this_week_jobs=this_week_jobs,
+                         this_month_jobs=this_month_jobs)
 
 @app.route('/jobs/create', methods=['GET', 'POST'])
 @login_required
@@ -494,11 +529,18 @@ def jobs_create():
             description=request.form['description'],
             company=request.form['company'],
             location=request.form['location'],
-            salary_range=request.form['salary_range'],
+            salary_min=float(request.form['salary_min']) if request.form['salary_min'] else None,
+            salary_max=float(request.form['salary_max']) if request.form['salary_max'] else None,
             employment_type=request.form['employment_type'],
             requirements=request.form['requirements'],
-            benefits=request.form['benefits'],
-            application_deadline=datetime.strptime(request.form['application_deadline'], '%Y-%m-%d') if request.form['application_deadline'] else None,
+            benefits=request.form.get('benefits', ''),
+            application_deadline=datetime.strptime(request.form['application_deadline'], '%Y-%m-%d') if request.form.get('application_deadline') else None,
+            hiring_quantity=int(request.form['hiring_quantity']) if request.form.get('hiring_quantity') else 1,
+            experience_level=request.form.get('experience_level', ''),
+            work_mode=request.form.get('work_mode', ''),
+            industry=request.form.get('industry', ''),
+            skills_required=request.form.get('skills_required', ''),
+            education_required=request.form.get('education_required', ''),
             user_id=current_user.id
         )
         
@@ -526,11 +568,18 @@ def jobs_edit(job_id):
         job.description = request.form['description']
         job.company = request.form['company']
         job.location = request.form['location']
-        job.salary_range = request.form['salary_range']
+        job.salary_min = float(request.form['salary_min']) if request.form['salary_min'] else None
+        job.salary_max = float(request.form['salary_max']) if request.form['salary_max'] else None
         job.employment_type = request.form['employment_type']
         job.requirements = request.form['requirements']
-        job.benefits = request.form['benefits']
-        job.application_deadline = datetime.strptime(request.form['application_deadline'], '%Y-%m-%d') if request.form['application_deadline'] else None
+        job.benefits = request.form.get('benefits', '')
+        job.application_deadline = datetime.strptime(request.form['application_deadline'], '%Y-%m-%d') if request.form.get('application_deadline') else None
+        job.hiring_quantity = int(request.form['hiring_quantity']) if request.form.get('hiring_quantity') else 1
+        job.experience_level = request.form.get('experience_level', '')
+        job.work_mode = request.form.get('work_mode', '')
+        job.industry = request.form.get('industry', '')
+        job.skills_required = request.form.get('skills_required', '')
+        job.education_required = request.form.get('education_required', '')
         job.updated_at = datetime.now(timezone.utc)
         
         db.session.commit()
