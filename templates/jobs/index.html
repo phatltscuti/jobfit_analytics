@@ -122,9 +122,9 @@
     <!-- Job List -->
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            {% if jobs %}
+            {% if jobs and jobs.items %}
                 <div class="space-y-4">
-                    {% for job in jobs %}
+                    {% for job in jobs.items %}
                     <div class="job-item border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow" data-employment-type="{{ job.employment_type or '' }}">
                         <div class="flex items-start justify-between">
                             <div class="flex-1 min-w-0">
@@ -227,17 +227,17 @@
                 </div>
 
                 <!-- Pagination -->
-                {% if pagination and pagination.pages > 1 %}
+                {% if jobs and jobs.pages > 1 %}
                 <div class="mt-6 flex items-center justify-between">
                     <div class="flex-1 flex justify-between sm:hidden">
-                        {% if pagination.has_prev %}
-                            <a href="{{ url_for('jobs_index', page=pagination.prev_num) }}" 
+                        {% if jobs.has_prev %}
+                            <a href="{{ url_for('jobs_index', page=jobs.prev_num) }}" 
                                class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                 Previous
                             </a>
                         {% endif %}
-                        {% if pagination.has_next %}
-                            <a href="{{ url_for('jobs_index', page=pagination.next_num) }}" 
+                        {% if jobs.has_next %}
+                            <a href="{{ url_for('jobs_index', page=jobs.next_num) }}" 
                                class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                 Next
                             </a>
@@ -246,23 +246,23 @@
                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                         <div>
                             <p class="text-sm text-gray-700">
-                                Showing <span class="font-medium">{{ pagination.page * pagination.per_page - pagination.per_page + 1 }}</span>
-                                to <span class="font-medium">{{ pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total }}</span>
-                                of <span class="font-medium">{{ pagination.total }}</span> results
+                                Showing <span class="font-medium">{{ jobs.page * jobs.per_page - jobs.per_page + 1 }}</span>
+                                to <span class="font-medium">{{ jobs.page * jobs.per_page if jobs.page * jobs.per_page < jobs.total else jobs.total }}</span>
+                                of <span class="font-medium">{{ jobs.total }}</span> results
                             </p>
                         </div>
                         <div>
                             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                {% if pagination.has_prev %}
-                                    <a href="{{ url_for('jobs_index', page=pagination.prev_num) }}" 
+                                {% if jobs.has_prev %}
+                                    <a href="{{ url_for('jobs_index', page=jobs.prev_num) }}" 
                                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                                         <i class="fas fa-chevron-left"></i>
                                     </a>
                                 {% endif %}
                                 
-                                {% for page_num in pagination.iter_pages() %}
+                                {% for page_num in jobs.iter_pages() %}
                                     {% if page_num %}
-                                        {% if page_num != pagination.page %}
+                                        {% if page_num != jobs.page %}
                                             <a href="{{ url_for('jobs_index', page=page_num) }}" 
                                                class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                                                 {{ page_num }}
@@ -279,8 +279,8 @@
                                     {% endif %}
                                 {% endfor %}
                                 
-                                {% if pagination.has_next %}
-                                    <a href="{{ url_for('jobs_index', page=pagination.next_num) }}" 
+                                {% if jobs.has_next %}
+                                    <a href="{{ url_for('jobs_index', page=jobs.next_num) }}" 
                                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                                         <i class="fas fa-chevron-right"></i>
                                     </a>
