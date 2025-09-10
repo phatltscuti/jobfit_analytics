@@ -868,6 +868,10 @@ def matching():
         selected_cv_ids = request.form.getlist('cv_ids')
         selected_cv_ids = [int(cv_id) for cv_id in selected_cv_ids if cv_id.isdigit()]
 
+        # If no CVs explicitly selected, default to all available CVs in scope
+        if job_id and not selected_cv_ids:
+            selected_cv_ids = [cv.id for cv in cvs]
+
         if job_id and selected_cv_ids:
             selected_job = Job.query.get_or_404(job_id)
             for cv_id in selected_cv_ids:
@@ -980,30 +984,34 @@ def api_match():
 def analyze_job_cv_match(cv_text, job_text):
     """Analyze job and CV match using OpenAI"""
     try:
+        # prefer Vietnamese output for strengths/weaknesses/recommendations
         prompt = f"""
-        Analyze the compatibility between this CV and Job posting. Provide a detailed analysis in JSON format:
-        
-        CV Information:
+        Phân tích mức độ phù hợp giữa CV và JD. Trả về đúng JSON, nội dung TIẾNG VIỆT:
+
+        CV:
         {cv_text}
-        
-        Job Information:
+
+        JD:
         {job_text}
-        
-        Please provide:
+
+        Đầu ra JSON đúng cấu trúc:
         {{
             "match_score": 85,
-            "analysis": "Detailed analysis of the match",
-            "strengths": ["Strength 1", "Strength 2", "Strength 3"],
-            "weaknesses": ["Weakness 1", "Weakness 2"],
-            "recommendations": ["Recommendation 1", "Recommendation 2"]
+            "analysis": "tóm tắt tổng quan bằng tiếng Việt",
+            "strengths": ["điểm mạnh 1", "điểm mạnh 2"],
+            "weaknesses": ["khoảng trống 1", "khoảng trống 2"],
+            "recommendations": ["khuyến nghị 1", "khuyến nghị 2"]
         }}
-        
-        Match score should be 0-100. Be specific and actionable in your analysis.
+
+        match_score trong khoảng 0-100.
         """
-        
+
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "Chỉ được trả về JSON hợp lệ, không thêm mô tả ngoài JSON."},
+                {"role": "user", "content": prompt}
+            ],
             max_tokens=1000,
             temperature=0.3
         )
