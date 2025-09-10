@@ -159,6 +159,26 @@
                             <dd class="mt-1 text-sm text-gray-900">{{ job.education_required }}</dd>
                         </div>
                         {% endif %}
+                        {% if job.criteria_seniority or job.criteria_core_skills or job.criteria_language %}
+                        <div class="pt-4 border-t">
+                            <dt class="text-sm font-medium text-gray-500">Matching Criteria (JD)</dt>
+                            <dd class="mt-1 text-sm text-gray-700 space-y-1">
+                                {% if job.criteria_seniority %}<div><span class="font-medium text-gray-600">Seniority:</span> {{ job.criteria_seniority }}</div>{% endif %}
+                                {% if job.criteria_core_skills %}<div><span class="font-medium text-gray-600">Core Skills:</span> {{ job.criteria_core_skills }}</div>{% endif %}
+                                {% if job.criteria_language %}<div><span class="font-medium text-gray-600">Language:</span> {{ job.criteria_language }}</div>{% endif %}
+                                {% if job.criteria_work_model %}<div><span class="font-medium text-gray-600">Work Model:</span> {{ job.criteria_work_model }}</div>{% endif %}
+                                {% if job.criteria_visa_required is not none %}<div><span class="font-medium text-gray-600">Visa Required:</span> {{ 'Yes' if job.criteria_visa_required else 'No' }}</div>{% endif %}
+                                {% if job.criteria_secondary_skills %}<div><span class="font-medium text-gray-600">Secondary Skills:</span> {{ job.criteria_secondary_skills }}</div>{% endif %}
+                                {% if job.criteria_years_experience is not none %}<div><span class="font-medium text-gray-600">Years Experience:</span> {{ job.criteria_years_experience }}</div>{% endif %}
+                                {% if job.criteria_recency_years is not none %}<div><span class="font-medium text-gray-600">Recency (years):</span> {{ job.criteria_recency_years }}</div>{% endif %}
+                                {% if job.criteria_domain %}<div><span class="font-medium text-gray-600">Domain:</span> {{ job.criteria_domain }}</div>{% endif %}
+                                {% if job.criteria_kpi_required is not none %}<div><span class="font-medium text-gray-600">KPI Required:</span> {{ 'Yes' if job.criteria_kpi_required else 'No' }}</div>{% endif %}
+                                {% if job.criteria_stack_versions %}<div><span class="font-medium text-gray-600">Stack/Versions:</span> {{ job.criteria_stack_versions }}</div>{% endif %}
+                                {% if job.criteria_soft_skills %}<div><span class="font-medium text-gray-600">Soft Skills:</span> {{ job.criteria_soft_skills }}</div>{% endif %}
+                                {% if job.criteria_culture_process %}<div><span class="font-medium text-gray-600">Culture/Process:</span> {{ job.criteria_culture_process }}</div>{% endif %}
+                            </dd>
+                        </div>
+                        {% endif %}
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Status</dt>
                             <dd class="mt-1">

@@ -25,43 +25,20 @@
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
             <form method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- CV Selection -->
-                    <div>
-                        <label for="cv_id" class="block text-sm font-medium text-gray-700 mb-2">Select CV</label>
-                        <select name="cv_id" id="cv_id" required 
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                            <option value="">Choose a CV to analyze</option>
-                            {% for cv in cvs %}
-                                <option value="{{ cv.id }}" {% if selected_cv and selected_cv.id == cv.id %}selected{% endif %}>
-                                    {{ cv.name or 'Unknown' }} - {{ cv.email or 'No email' }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        
-                        <!-- CV Preview -->
-                        {% if selected_cv %}
-                        <div class="mt-4 p-4 bg-primary-50 rounded-lg border border-primary-200">
-                            <h4 class="text-sm font-medium text-primary-900 mb-2">Selected CV Preview</h4>
-                            <div class="text-sm text-primary-700">
-                                <p><strong>Name:</strong> {{ selected_cv.name or 'Not provided' }}</p>
-                                <p><strong>Email:</strong> {{ selected_cv.email or 'Not provided' }}</p>
-                                {% if selected_cv.phone %}
-                                    <p><strong>Phone:</strong> {{ selected_cv.phone }}</p>
-                                {% endif %}
-                                {% if selected_cv.skills %}
-                                    <p><strong>Skills:</strong> {{ selected_cv.skills[:100] }}{% if selected_cv.skills|length > 100 %}...{% endif %}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-
                     <!-- Job Selection -->
                     <div>
-                        <label for="job_id" class="block text-sm font-medium text-gray-700 mb-2">Select Job</label>
+                        <label for="job_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            <span class="inline-flex items-center"><i class="fas fa-briefcase mr-2 text-gray-500"></i>Select Job</span>
+                        </label>
+                        <div class="relative mb-2">
+                            <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                            <input id="jobFilter" type="text" placeholder="Filter jobs by title or company..."
+                                   class="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white" />
+                        </div>
                         <select name="job_id" id="job_id" required 
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
                             <option value="">Choose a job to match</option>
                             {% for job in jobs %}
                                 <option value="{{ job.id }}" {% if selected_job and selected_job.id == job.id %}selected{% endif %}>
@@ -69,46 +46,92 @@
                                 </option>
                             {% endfor %}
                         </select>
-                        
-                        <!-- Job Preview -->
+                        <p class="text-xs text-gray-500 mt-2">Newest jobs appear first. Start typing to jump to an option.</p>
                         {% if selected_job %}
-                        <div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                            <h4 class="text-sm font-medium text-green-900 mb-2">Selected Job Preview</h4>
+                        <div class="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                            <h4 class="text-sm font-medium text-green-900 mb-2">Selected Job</h4>
                             <div class="text-sm text-green-700">
                                 <p><strong>Title:</strong> {{ selected_job.title }}</p>
                                 <p><strong>Company:</strong> {{ selected_job.company }}</p>
                                 <p><strong>Location:</strong> {{ selected_job.location }}</p>
-                                {% if selected_job.salary %}
-                                    <p><strong>Salary:</strong> {{ selected_job.salary }}</p>
-                                {% endif %}
-                                {% if selected_job.description %}
-                                    <p><strong>Description:</strong> {{ selected_job.description[:100] }}{% if selected_job.description|length > 100 %}...{% endif %}</p>
+                                {% if selected_job.salary_min or selected_job.salary_max %}
+                                    <p><strong>Salary:</strong>
+                                        {% if selected_job.salary_min and selected_job.salary_max %}
+                                            ${{ '%.0f'|format(selected_job.salary_min) }} - ${{ '%.0f'|format(selected_job.salary_max) }}
+                                        {% elif selected_job.salary_min %}
+                                            From ${{ '%.0f'|format(selected_job.salary_min) }}
+                                        {% elif selected_job.salary_max %}
+                                            Up to ${{ '%.0f'|format(selected_job.salary_max) }}
+                                        {% endif %}
+                                    </p>
                                 {% endif %}
                             </div>
                         </div>
                         {% endif %}
                     </div>
+
+                    <!-- Multi CV Selection -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label for="cv_ids" class="block text-sm font-medium text-gray-700">
+                                <span class="inline-flex items-center"><i class="fas fa-id-card mr-2 text-gray-500"></i>Select CVs (multiple)</span>
+                            </label>
+                            <span id="cvSelectedCount" class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">0 selected</span>
+                        </div>
+                        <div class="relative mb-2">
+                            <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                            <input id="cvFilter" type="text" placeholder="Filter CVs by name or email..."
+                                   class="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white" />
+                        </div>
+                        <select name="cv_ids" id="cv_ids" multiple size="10"
+                                class="mt-1 block w-full px-3 py-2 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white h-64">
+                            {% for cv in cvs %}
+                                <option value="{{ cv.id }}" {% if selected_cv_ids and (cv.id in selected_cv_ids) %}selected{% endif %}>
+                                    {{ cv.name or 'Unknown' }} - {{ cv.email or 'No email' }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-500 mt-2">Hold Ctrl (Cmd on Mac) to select multiple CVs</p>
+                    </div>
                 </div>
 
-                <!-- Match Button -->
-                <div class="flex justify-center">
-                    {% if cvs and jobs %}
-                        <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors">
-                            <i class="fas fa-search mr-2"></i>Analyze Match
-                        </button>
-                    {% else %}
-                        <div class="text-center">
-                            <p class="text-gray-500 mb-4">Please upload CVs and create jobs first to use matching.</p>
-                            <div class="space-x-4">
-                                <a href="{{ url_for('cvs_create') }}" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    <i class="fas fa-upload mr-2"></i>Upload CV
-                                </a>
-                                <a href="{{ url_for('jobs_create') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    <i class="fas fa-plus mr-2"></i>Create Job
-                                </a>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                    <!-- Criteria Styled Card -->
+                    <div>
+                        <label for="criteria" class="block text-sm font-medium text-gray-700 mb-2">
+                            <span class="inline-flex items-center"><i class="fas fa-sliders-h mr-2 text-gray-500"></i>Matching Criteria (optional)</span>
+                        </label>
+                        <div class="relative">
+                            <textarea id="criteria" name="criteria" rows="4" maxlength="600"
+                                      placeholder="E.g., prioritize React + TypeScript, ≥3 years experience, English B2+, fintech domain..."
+                                      class="w-full pr-14 pl-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">{{ criteria or '' }}</textarea>
+                            <div class="absolute right-3 bottom-3 text-xs text-gray-400" id="criteriaCounter">0 / 600</div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">These criteria will be appended to the AI prompt and influence the match scoring.</p>
+                    </div>
+
+                    <!-- Threshold Styled Control -->
+                    <div class="w-full">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <span class="inline-flex items-center"><i class="fas fa-percent mr-2 text-gray-500"></i>Pass threshold</span>
+                        </label>
+                        <div class="p-4 border-2 border-gray-200 rounded-xl bg-white shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-gray-500">Min: 0</span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary-50 text-primary-700" id="thresholdBadge">{{ pass_threshold }}%</span>
+                                <span class="text-xs text-gray-500">Max: 100</span>
+                            </div>
+                            <input type="range" id="pass_threshold_range" min="0" max="100" value="{{ pass_threshold }}" step="1"
+                                   class="mt-3 w-full accent-primary-600" />
+                            <div class="mt-3 flex items-center space-x-3">
+                                <input type="number" name="pass_threshold" id="pass_threshold_input" min="0" max="100" value="{{ pass_threshold }}"
+                                       class="w-24 px-3 py-2 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
+                                <button type="submit" class="ml-auto bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors">
+                                    <i class="fas fa-search mr-2"></i>Analyze Matching
+                                </button>
                             </div>
                         </div>
-                    {% endif %}
+                    </div>
                 </div>
             </form>
         </div>
@@ -131,103 +154,58 @@
     {% endif %}
 
     <!-- Match Results -->
-    {% if match_result %}
+    {% if match_results and selected_job %}
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Match Analysis Results</h3>
-            
-            <!-- Match Score -->
-            <div class="mb-6">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-gray-700">Overall Match Score</span>
-                    <span class="text-2xl font-bold text-primary-600">{{ match_result.match_score }}%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-3">
-                    <div class="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-500" 
-                         style="width: {{ match_result.match_score }}%"></div>
-                </div>
-            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Match Results for: <span class="font-semibold">{{ selected_job.title }}</span></h3>
 
-            <!-- Strengths -->
-            {% if match_result.strengths %}
-            <div class="mb-6">
-                <h4 class="text-md font-medium text-gray-900 mb-3">
-                    <i class="fas fa-check-circle text-green-500 mr-2"></i>Strengths
-                </h4>
-                <ul class="space-y-2">
-                    {% for strength in match_result.strengths %}
-                        <li class="flex items-start">
-                            <i class="fas fa-arrow-right text-green-500 mr-2 mt-1 text-xs"></i>
-                            <span class="text-sm text-gray-700">{{ strength }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-
-            <!-- Weaknesses -->
-            {% if match_result.weaknesses %}
-            <div class="mb-6">
-                <h4 class="text-md font-medium text-gray-900 mb-3">
-                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Areas for Improvement
-                </h4>
-                <ul class="space-y-2">
-                    {% for weakness in match_result.weaknesses %}
-                        <li class="flex items-start">
-                            <i class="fas fa-arrow-right text-yellow-500 mr-2 mt-1 text-xs"></i>
-                            <span class="text-sm text-gray-700">{{ weakness }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-
-            <!-- Recommendations -->
-            {% if match_result.recommendations %}
-            <div class="mb-6">
-                <h4 class="text-md font-medium text-gray-900 mb-3">
-                    <i class="fas fa-lightbulb text-blue-500 mr-2"></i>Recommendations
-                </h4>
-                <ul class="space-y-2">
-                    {% for recommendation in match_result.recommendations %}
-                        <li class="flex items-start">
-                            <i class="fas fa-arrow-right text-blue-500 mr-2 mt-1 text-xs"></i>
-                            <span class="text-sm text-gray-700">{{ recommendation }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-
-            <!-- Manual Adjustment -->
-            <div class="border-t border-gray-200 pt-6">
-                <h4 class="text-md font-medium text-gray-900 mb-3">Manual Adjustment</h4>
-                <p class="text-sm text-gray-600 mb-4">You can manually adjust the match score and add notes:</p>
-                <form method="POST" class="space-y-4">
-                    <input type="hidden" name="cv_id" value="{{ selected_cv.id if selected_cv else '' }}">
-                    <input type="hidden" name="job_id" value="{{ selected_job.id if selected_job else '' }}">
-                    <input type="hidden" name="action" value="manual_adjust">
-                    
-                    <div>
-                        <label for="manual_score" class="block text-sm font-medium text-gray-700">Adjusted Score</label>
-                        <input type="number" name="manual_score" id="manual_score" min="0" max="100" 
-                               value="{{ match_result.match_score }}" 
-                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                    </div>
-                    
-                    <div>
-                        <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
-                        <textarea name="notes" id="notes" rows="3" 
-                                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                                  placeholder="Add any additional notes about this match..."></textarea>
-                    </div>
-                    
-                    <div class="flex justify-end">
-                        <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                            <i class="fas fa-save mr-2"></i>Save Adjustment
-                        </button>
-                    </div>
-                </form>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CV</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pass</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Highlights</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gaps</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for r in match_results %}
+                        <tr>
+                            <td class="px-4 py-3 text-sm text-gray-900">
+                                <a href="{{ url_for('cvs_show', cv_id=r.cv.id) }}" class="text-primary-600 hover:underline">{{ r.cv.name or 'Unknown' }}</a>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-500">{{ r.cv.email or '-' }}</td>
+                            <td class="px-4 py-3 text-sm">
+                                <span class="font-semibold {{ 'text-green-600' if r.match_score >= pass_threshold else 'text-yellow-600' }}">{{ r.match_score }}%</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                {% if r.pass %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Pass</span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Fail</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-xs text-gray-600">
+                                {% if r.strengths %}
+                                    <ul class="list-disc list-inside space-y-1">
+                                        {% for s in r.strengths[:3] %}<li>{{ s }}</li>{% endfor %}
+                                    </ul>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-xs text-gray-600">
+                                {% if r.weaknesses %}
+                                    <ul class="list-disc list-inside space-y-1">
+                                        {% for w in r.weaknesses[:3] %}<li>{{ w }}</li>{% endfor %}
+                                    </ul>
+                                {% else %}-{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -257,17 +235,88 @@
 </div>
 
 <script>
-    // Auto-submit form when both CV and Job are selected
-    document.getElementById('cv_id').addEventListener('change', function() {
-        if (this.value && document.getElementById('job_id').value) {
-            this.form.submit();
+    // Enhance selects: filter CVs and show selected count
+    (function() {
+        const jobSelect = document.getElementById('job_id');
+        const cvsSelect = document.getElementById('cv_ids');
+        const cvFilter = document.getElementById('cvFilter');
+        const jobFilter = document.getElementById('jobFilter');
+        const cvSelectedCount = document.getElementById('cvSelectedCount');
+        const criteria = document.getElementById('criteria');
+        const criteriaCounter = document.getElementById('criteriaCounter');
+        const thresholdRange = document.getElementById('pass_threshold_range');
+        const thresholdInput = document.getElementById('pass_threshold_input');
+        const thresholdBadge = document.getElementById('thresholdBadge');
+
+        function updateSelectedCount() {
+            if (!cvsSelect || !cvSelectedCount) return;
+            const count = Array.from(cvsSelect.selectedOptions).length;
+            cvSelectedCount.textContent = `${count} selected`;
         }
-    });
-    
-    document.getElementById('job_id').addEventListener('change', function() {
-        if (this.value && document.getElementById('cv_id').value) {
-            this.form.submit();
+
+        function filterOptions() {
+            if (!cvsSelect || !cvFilter) return;
+            const term = cvFilter.value.toLowerCase();
+            Array.from(cvsSelect.options).forEach(opt => {
+                const txt = opt.textContent.toLowerCase();
+                opt.hidden = term && !txt.includes(term);
+            });
         }
-    });
+
+        if (cvsSelect) {
+            cvsSelect.addEventListener('change', updateSelectedCount);
+            updateSelectedCount();
+        }
+        if (cvFilter) {
+            cvFilter.addEventListener('input', filterOptions);
+        }
+
+        if (jobFilter && jobSelect) {
+            jobFilter.addEventListener('input', function() {
+                const term = jobFilter.value.toLowerCase();
+                Array.from(jobSelect.options).forEach(opt => {
+                    const txt = opt.textContent.toLowerCase();
+                    opt.hidden = term && !txt.includes(term);
+                });
+            });
+        }
+
+        // Criteria counter
+        if (criteria && criteriaCounter) {
+            const updateCount = () => {
+                const len = criteria.value.length;
+                criteriaCounter.textContent = `${len} / 600`;
+            };
+            criteria.addEventListener('input', updateCount);
+            updateCount();
+        }
+
+        // Threshold sync (range <-> number) + badge
+        function syncThreshold(fromRange) {
+            if (!thresholdBadge) return;
+            if (fromRange && thresholdRange && thresholdInput) {
+                thresholdInput.value = thresholdRange.value;
+            } else if (thresholdInput && thresholdRange) {
+                let v = parseInt(thresholdInput.value || '0', 10);
+                if (isNaN(v)) v = 0;
+                v = Math.min(100, Math.max(0, v));
+                thresholdInput.value = v;
+                thresholdRange.value = String(v);
+            }
+            thresholdBadge.textContent = `${thresholdInput ? thresholdInput.value : (thresholdRange ? thresholdRange.value : 0)}%`;
+        }
+        if (thresholdRange) thresholdRange.addEventListener('input', () => syncThreshold(true));
+        if (thresholdInput) thresholdInput.addEventListener('input', () => syncThreshold(false));
+        syncThreshold(true);
+
+        // Optional: auto-submit when job changes and at least one CV selected
+        if (jobSelect && cvsSelect) {
+            jobSelect.addEventListener('change', function() {
+                if (this.value && cvsSelect.selectedOptions.length > 0) {
+                    this.form.submit();
+                }
+            });
+        }
+    })();
 </script>
 {% endblock %}

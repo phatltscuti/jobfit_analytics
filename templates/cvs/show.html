@@ -91,6 +91,56 @@
                 </div>
             </div>
             {% endif %}
+
+            <!-- Matching Criteria (CV) -->
+            {% if cv.cv_seniority or cv.cv_core_skills or cv.cv_languages or cv.cv_work_model or cv.cv_visa_status or cv.cv_secondary_skills or cv.cv_years_experience or cv.cv_recency_years or cv.cv_domain or cv.cv_kpi or cv.cv_stack_versions or cv.cv_soft_skills or cv.cv_culture_process %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Matching Criteria (CV)</h3>
+                    <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                        {% if cv.cv_seniority %}
+                        <div><dt class="text-sm font-medium text-gray-500">Seniority</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_seniority }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_core_skills %}
+                        <div><dt class="text-sm font-medium text-gray-500">Core Skills</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_core_skills }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_languages %}
+                        <div><dt class="text-sm font-medium text-gray-500">Languages</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_languages }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_work_model %}
+                        <div><dt class="text-sm font-medium text-gray-500">Work Model</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_work_model }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_visa_status %}
+                        <div><dt class="text-sm font-medium text-gray-500">Visa / Work right</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_visa_status }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_secondary_skills %}
+                        <div><dt class="text-sm font-medium text-gray-500">Secondary Skills</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_secondary_skills }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_years_experience is not none %}
+                        <div><dt class="text-sm font-medium text-gray-500">Years of Experience</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_years_experience }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_recency_years is not none %}
+                        <div><dt class="text-sm font-medium text-gray-500">Recency (years)</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_recency_years }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_domain %}
+                        <div><dt class="text-sm font-medium text-gray-500">Domain / Industry</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_domain }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_kpi %}
+                        <div><dt class="text-sm font-medium text-gray-500">KPI / Achievements</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_kpi }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_stack_versions %}
+                        <div><dt class="text-sm font-medium text-gray-500">Stack / Versions</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_stack_versions }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_soft_skills %}
+                        <div><dt class="text-sm font-medium text-gray-500">Soft skills</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_soft_skills }}</dd></div>
+                        {% endif %}
+                        {% if cv.cv_culture_process %}
+                        <div><dt class="text-sm font-medium text-gray-500">Culture / Process</dt><dd class="mt-1 text-sm text-gray-900">{{ cv.cv_culture_process }}</dd></div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Sidebar -->

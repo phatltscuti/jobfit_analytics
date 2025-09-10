@@ -187,6 +187,77 @@
                     </label>
                 </div>
 
+                <!-- Matching Criteria (JD) -->
+                <div class="mt-8 border-t pt-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Matching Criteria (Optional)</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Seniority / Level</label>
+                            <input type="text" name="criteria_seniority" value="{{ job.criteria_seniority or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Core Skills (comma separated)</label>
+                            <input type="text" name="criteria_core_skills" value="{{ job.criteria_core_skills or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Required Language</label>
+                            <input type="text" name="criteria_language" value="{{ job.criteria_language or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Work Model</label>
+                            <select name="criteria_work_model" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                                <option value="" {% if not job.criteria_work_model %}selected{% endif %}>Select</option>
+                                <option {% if job.criteria_work_model=='Remote' %}selected{% endif %}>Remote</option>
+                                <option {% if job.criteria_work_model=='On-site' %}selected{% endif %}>On-site</option>
+                                <option {% if job.criteria_work_model=='Hybrid' %}selected{% endif %}>Hybrid</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Visa Required</label>
+                            <select name="criteria_visa_required" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                                <option value="" {% if job.criteria_visa_required is none %}selected{% endif %}>Select</option>
+                                <option value="true" {% if job.criteria_visa_required %}selected{% endif %}>Yes</option>
+                                <option value="false" {% if job.criteria_visa_required is not none and not job.criteria_visa_required %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Secondary Skills</label>
+                            <input type="text" name="criteria_secondary_skills" value="{{ job.criteria_secondary_skills or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Years of Experience</label>
+                            <input type="number" name="criteria_years_experience" min="0" value="{{ job.criteria_years_experience or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Recency (years)</label>
+                            <input type="number" name="criteria_recency_years" min="0" value="{{ job.criteria_recency_years or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Domain / Industry</label>
+                            <input type="text" name="criteria_domain" value="{{ job.criteria_domain or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">KPI Required</label>
+                            <select name="criteria_kpi_required" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                                <option value="" {% if job.criteria_kpi_required is none %}selected{% endif %}>Select</option>
+                                <option value="true" {% if job.criteria_kpi_required %}selected{% endif %}>Yes</option>
+                                <option value="false" {% if job.criteria_kpi_required is not none and not job.criteria_kpi_required %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700">Stack / Tool versions</label>
+                            <input type="text" name="criteria_stack_versions" value="{{ job.criteria_stack_versions or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Soft skills</label>
+                            <input type="text" name="criteria_soft_skills" value="{{ job.criteria_soft_skills or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Culture / Process</label>
+                            <input type="text" name="criteria_culture_process" value="{{ job.criteria_culture_process or '' }}" class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        </div>
+                    </div>
+                </div>
                 <!-- Submit Buttons -->
                 <div class="flex justify-end space-x-3">
                     <a href="{{ url_for('jobs_show', job_id=job.id) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md">
