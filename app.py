@@ -370,7 +370,7 @@ def analyze_cv_with_openai(text):
         }}
 
         CV Text:
-        {text[:3000]}
+        {text}
         """
 
         response = openai.ChatCompletion.create(
