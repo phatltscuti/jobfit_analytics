@@ -1,0 +1,273 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Job Matching - JobFit Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Job Matching
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                AI-powered matching between CVs and job postings
+            </p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                <i class="fas fa-robot mr-2"></i>AI-Powered Analysis
+            </span>
+        </div>
+    </div>
+
+    <!-- Selection Form -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <form method="POST" class="space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- CV Selection -->
+                    <div>
+                        <label for="cv_id" class="block text-sm font-medium text-gray-700 mb-2">Select CV</label>
+                        <select name="cv_id" id="cv_id" required 
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                            <option value="">Choose a CV to analyze</option>
+                            {% for cv in cvs %}
+                                <option value="{{ cv.id }}" {% if selected_cv and selected_cv.id == cv.id %}selected{% endif %}>
+                                    {{ cv.name or 'Unknown' }} - {{ cv.email or 'No email' }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        
+                        <!-- CV Preview -->
+                        {% if selected_cv %}
+                        <div class="mt-4 p-4 bg-primary-50 rounded-lg border border-primary-200">
+                            <h4 class="text-sm font-medium text-primary-900 mb-2">Selected CV Preview</h4>
+                            <div class="text-sm text-primary-700">
+                                <p><strong>Name:</strong> {{ selected_cv.name or 'Not provided' }}</p>
+                                <p><strong>Email:</strong> {{ selected_cv.email or 'Not provided' }}</p>
+                                {% if selected_cv.phone %}
+                                    <p><strong>Phone:</strong> {{ selected_cv.phone }}</p>
+                                {% endif %}
+                                {% if selected_cv.skills %}
+                                    <p><strong>Skills:</strong> {{ selected_cv.skills[:100] }}{% if selected_cv.skills|length > 100 %}...{% endif %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Job Selection -->
+                    <div>
+                        <label for="job_id" class="block text-sm font-medium text-gray-700 mb-2">Select Job</label>
+                        <select name="job_id" id="job_id" required 
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                            <option value="">Choose a job to match</option>
+                            {% for job in jobs %}
+                                <option value="{{ job.id }}" {% if selected_job and selected_job.id == job.id %}selected{% endif %}>
+                                    {{ job.title }} - {{ job.company }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        
+                        <!-- Job Preview -->
+                        {% if selected_job %}
+                        <div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                            <h4 class="text-sm font-medium text-green-900 mb-2">Selected Job Preview</h4>
+                            <div class="text-sm text-green-700">
+                                <p><strong>Title:</strong> {{ selected_job.title }}</p>
+                                <p><strong>Company:</strong> {{ selected_job.company }}</p>
+                                <p><strong>Location:</strong> {{ selected_job.location }}</p>
+                                {% if selected_job.salary %}
+                                    <p><strong>Salary:</strong> {{ selected_job.salary }}</p>
+                                {% endif %}
+                                {% if selected_job.description %}
+                                    <p><strong>Description:</strong> {{ selected_job.description[:100] }}{% if selected_job.description|length > 100 %}...{% endif %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Match Button -->
+                <div class="flex justify-center">
+                    {% if cvs and jobs %}
+                        <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors">
+                            <i class="fas fa-search mr-2"></i>Analyze Match
+                        </button>
+                    {% else %}
+                        <div class="text-center">
+                            <p class="text-gray-500 mb-4">Please upload CVs and create jobs first to use matching.</p>
+                            <div class="space-x-4">
+                                <a href="{{ url_for('cvs_create') }}" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    <i class="fas fa-upload mr-2"></i>Upload CV
+                                </a>
+                                <a href="{{ url_for('jobs_create') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    <i class="fas fa-plus mr-2"></i>Create Job
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    {% if is_analyzing %}
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6 text-center">
+            <div class="inline-flex items-center px-4 py-2 font-semibold leading-6 text-sm shadow rounded-md text-white bg-primary-500 hover:bg-primary-400 transition ease-in-out duration-150 cursor-not-allowed">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Analyzing match with AI...
+            </div>
+            <p class="mt-4 text-sm text-gray-500">This may take a few moments</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Match Results -->
+    {% if match_result %}
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Match Analysis Results</h3>
+            
+            <!-- Match Score -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700">Overall Match Score</span>
+                    <span class="text-2xl font-bold text-primary-600">{{ match_result.match_score }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-500" 
+                         style="width: {{ match_result.match_score }}%"></div>
+                </div>
+            </div>
+
+            <!-- Strengths -->
+            {% if match_result.strengths %}
+            <div class="mb-6">
+                <h4 class="text-md font-medium text-gray-900 mb-3">
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>Strengths
+                </h4>
+                <ul class="space-y-2">
+                    {% for strength in match_result.strengths %}
+                        <li class="flex items-start">
+                            <i class="fas fa-arrow-right text-green-500 mr-2 mt-1 text-xs"></i>
+                            <span class="text-sm text-gray-700">{{ strength }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Weaknesses -->
+            {% if match_result.weaknesses %}
+            <div class="mb-6">
+                <h4 class="text-md font-medium text-gray-900 mb-3">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Areas for Improvement
+                </h4>
+                <ul class="space-y-2">
+                    {% for weakness in match_result.weaknesses %}
+                        <li class="flex items-start">
+                            <i class="fas fa-arrow-right text-yellow-500 mr-2 mt-1 text-xs"></i>
+                            <span class="text-sm text-gray-700">{{ weakness }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Recommendations -->
+            {% if match_result.recommendations %}
+            <div class="mb-6">
+                <h4 class="text-md font-medium text-gray-900 mb-3">
+                    <i class="fas fa-lightbulb text-blue-500 mr-2"></i>Recommendations
+                </h4>
+                <ul class="space-y-2">
+                    {% for recommendation in match_result.recommendations %}
+                        <li class="flex items-start">
+                            <i class="fas fa-arrow-right text-blue-500 mr-2 mt-1 text-xs"></i>
+                            <span class="text-sm text-gray-700">{{ recommendation }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Manual Adjustment -->
+            <div class="border-t border-gray-200 pt-6">
+                <h4 class="text-md font-medium text-gray-900 mb-3">Manual Adjustment</h4>
+                <p class="text-sm text-gray-600 mb-4">You can manually adjust the match score and add notes:</p>
+                <form method="POST" class="space-y-4">
+                    <input type="hidden" name="cv_id" value="{{ selected_cv.id if selected_cv else '' }}">
+                    <input type="hidden" name="job_id" value="{{ selected_job.id if selected_job else '' }}">
+                    <input type="hidden" name="action" value="manual_adjust">
+                    
+                    <div>
+                        <label for="manual_score" class="block text-sm font-medium text-gray-700">Adjusted Score</label>
+                        <input type="number" name="manual_score" id="manual_score" min="0" max="100" 
+                               value="{{ match_result.match_score }}" 
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                        <textarea name="notes" id="notes" rows="3" 
+                                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                                  placeholder="Add any additional notes about this match..."></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i class="fas fa-save mr-2"></i>Save Adjustment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- AI Analysis Info -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-robot text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">AI-Powered Matching</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <p>Our AI analyzes the compatibility between CVs and job postings by examining:</p>
+                    <ul class="list-disc list-inside mt-1 space-y-1">
+                        <li>Skills alignment and requirements match</li>
+                        <li>Experience level compatibility</li>
+                        <li>Education and qualifications</li>
+                        <li>Location and work preferences</li>
+                        <li>Overall profile fit</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-submit form when both CV and Job are selected
+    document.getElementById('cv_id').addEventListener('change', function() {
+        if (this.value && document.getElementById('job_id').value) {
+            this.form.submit();
+        }
+    });
+    
+    document.getElementById('job_id').addEventListener('change', function() {
+        if (this.value && document.getElementById('cv_id').value) {
+            this.form.submit();
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,248 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Settings - JobFit Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Settings
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Manage your application settings and preferences
+            </p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4">
+            <a href="{{ url_for('profile') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Profile
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Settings Form -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- OpenAI Settings -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">OpenAI Configuration</h3>
+                    <form method="POST" class="space-y-6">
+                        <div>
+                            <label for="openai_api_key" class="block text-sm font-medium text-gray-700">OpenAI API Key</label>
+                            <input type="password" name="openai_api_key" id="openai_api_key" 
+                                   value="{{ settings.openai_api_key or '' }}" 
+                                   class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
+                                   placeholder="Enter your OpenAI API key">
+                            <p class="mt-2 text-sm text-gray-500">Your OpenAI API key for AI-powered analysis</p>
+                        </div>
+                        
+                        <div>
+                            <label for="openai_model" class="block text-sm font-medium text-gray-700">OpenAI Model</label>
+                            <select name="openai_model" id="openai_model" 
+                                    class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                                <option value="gpt-3.5-turbo" {% if settings.openai_model == 'gpt-3.5-turbo' %}selected{% endif %}>GPT-3.5 Turbo</option>
+                                <option value="gpt-4" {% if settings.openai_model == 'gpt-4' %}selected{% endif %}>GPT-4</option>
+                                <option value="gpt-4-turbo" {% if settings.openai_model == 'gpt-4-turbo' %}selected{% endif %}>GPT-4 Turbo</option>
+                            </select>
+                            <p class="mt-2 text-sm text-gray-500">Choose the AI model for analysis</p>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit" name="action" value="update_openai" 
+                                    class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                                <i class="fas fa-save mr-2"></i>Save OpenAI Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Application Settings -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Application Settings</h3>
+                    <form method="POST" class="space-y-6">
+                        <div>
+                            <label for="app_name" class="block text-sm font-medium text-gray-700">Application Name</label>
+                            <input type="text" name="app_name" id="app_name" 
+                                   value="{{ settings.app_name or 'JobFit Analytics' }}" 
+                                   class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                        </div>
+                        
+                        <div>
+                            <label for="items_per_page" class="block text-sm font-medium text-gray-700">Items Per Page</label>
+                            <select name="items_per_page" id="items_per_page" 
+                                    class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                                <option value="10" {% if settings.items_per_page == 10 %}selected{% endif %}>10</option>
+                                <option value="25" {% if settings.items_per_page == 25 %}selected{% endif %}>25</option>
+                                <option value="50" {% if settings.items_per_page == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if settings.items_per_page == 100 %}selected{% endif %}>100</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input id="enable_notifications" name="enable_notifications" type="checkbox" 
+                                   {% if settings.enable_notifications %}checked{% endif %}
+                                   class="h-5 w-5 text-primary-600 focus:ring-2 focus:ring-primary-500 border-2 border-gray-300 rounded transition-all duration-200">
+                            <label for="enable_notifications" class="ml-2 block text-sm text-gray-900">
+                                Enable notifications
+                            </label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input id="enable_ai_analysis" name="enable_ai_analysis" type="checkbox" 
+                                   {% if settings.enable_ai_analysis %}checked{% endif %}
+                                   class="h-5 w-5 text-primary-600 focus:ring-2 focus:ring-primary-500 border-2 border-gray-300 rounded transition-all duration-200">
+                            <label for="enable_ai_analysis" class="ml-2 block text-sm text-gray-900">
+                                Enable AI analysis for CVs
+                            </label>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit" name="action" value="update_app" 
+                                    class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                                <i class="fas fa-save mr-2"></i>Save Application Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Database Management -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Database Management</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-900">Clear All Data</h4>
+                                <p class="text-sm text-gray-500">Remove all CVs, jobs, and user data</p>
+                            </div>
+                            <button onclick="confirmClearData()" 
+                                    class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                                <i class="fas fa-trash mr-2"></i>Clear All Data
+                            </button>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-900">Export Data</h4>
+                                <p class="text-sm text-gray-500">Download all data as JSON</p>
+                            </div>
+                            <a href="{{ url_for('export_data') }}" 
+                               class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                                <i class="fas fa-download mr-2"></i>Export Data
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Current Settings -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Current Settings</h3>
+                    <dl class="space-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">OpenAI Model</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ settings.openai_model or 'Not configured' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">API Key Status</dt>
+                            <dd class="mt-1">
+                                {% if settings.openai_api_key %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-check mr-1"></i>Configured
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-times mr-1"></i>Not Set
+                                    </span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Items Per Page</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ settings.items_per_page or 10 }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Notifications</dt>
+                            <dd class="mt-1">
+                                {% if settings.enable_notifications %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Enabled
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        Disabled
+                                    </span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">AI Analysis</dt>
+                            <dd class="mt-1">
+                                {% if settings.enable_ai_analysis %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Enabled
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        Disabled
+                                    </span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- System Info -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">System Information</h3>
+                    <dl class="space-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Version</dt>
+                            <dd class="mt-1 text-sm text-gray-900">1.0.0</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Database</dt>
+                            <dd class="mt-1 text-sm text-gray-900">SQLite</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ settings.updated_at.strftime('%B %d, %Y') if settings.updated_at else 'Never' }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmClearData() {
+        if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+            // Create a form to submit the clear data action
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("settings") }}';
+            
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'clear_data';
+            form.appendChild(actionInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+</script>
+{% endblock %}

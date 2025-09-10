@@ -1,0 +1,151 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Create Job - JobFit Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Create New Job
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Post a new job opportunity and find the perfect candidate.
+            </p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4">
+            <a href="{{ url_for('jobs_index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Jobs
+            </a>
+        </div>
+    </div>
+
+    <!-- Create Form -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <form method="POST" class="space-y-6">
+                <!-- Basic Information -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-700">Job Title *</label>
+                        <input type="text" name="title" id="title" required 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
+                               placeholder="e.g., Senior Software Engineer">
+                    </div>
+                    
+                    <div>
+                        <label for="company" class="block text-sm font-medium text-gray-700">Company *</label>
+                        <input type="text" name="company" id="company" required 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
+                               placeholder="e.g., Tech Corp Inc.">
+                    </div>
+                    
+                    <div>
+                        <label for="location" class="block text-sm font-medium text-gray-700">Location *</label>
+                        <input type="text" name="location" id="location" required 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
+                               placeholder="e.g., San Francisco, CA">
+                    </div>
+                    
+                    <div>
+                        <label for="salary" class="block text-sm font-medium text-gray-700">Salary</label>
+                        <input type="text" name="salary" id="salary" 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
+                               placeholder="e.g., $80,000 - $120,000">
+                    </div>
+                    
+                    <div>
+                        <label for="employment_type" class="block text-sm font-medium text-gray-700">Employment Type</label>
+                        <select name="employment_type" id="employment_type" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select type</option>
+                            <option value="Full-time">Full-time</option>
+                            <option value="Part-time">Part-time</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Freelance">Freelance</option>
+                            <option value="Internship">Internship</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="experience_level" class="block text-sm font-medium text-gray-700">Experience Level</label>
+                        <select name="experience_level" id="experience_level" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select level</option>
+                            <option value="Entry Level">Entry Level</option>
+                            <option value="Mid Level">Mid Level</option>
+                            <option value="Senior Level">Senior Level</option>
+                            <option value="Executive">Executive</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Job Description -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700">Job Description *</label>
+                    <textarea name="description" id="description" rows="6" required 
+                              class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none"
+                              placeholder="Describe the role, responsibilities, and requirements..."></textarea>
+                </div>
+                
+                <!-- Requirements -->
+                <div>
+                    <label for="requirements" class="block text-sm font-medium text-gray-700">Requirements</label>
+                    <textarea name="requirements" id="requirements" rows="4" 
+                              class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none"
+                              placeholder="List the required skills, qualifications, and experience..."></textarea>
+                </div>
+                
+                <!-- Benefits -->
+                <div>
+                    <label for="benefits" class="block text-sm font-medium text-gray-700">Benefits</label>
+                    <textarea name="benefits" id="benefits" rows="3" 
+                              class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none"
+                              placeholder="List the benefits and perks offered..."></textarea>
+                </div>
+                
+                <!-- Status -->
+                <div class="flex items-center">
+                    <input id="is_active" name="is_active" type="checkbox" checked
+                           class="h-5 w-5 text-primary-600 focus:ring-2 focus:ring-primary-500 border-2 border-gray-300 rounded transition-all duration-200">
+                    <label for="is_active" class="ml-2 block text-sm text-gray-900">
+                        Make this job posting active (visible to candidates)
+                    </label>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('jobs_index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                        <i class="fas fa-plus mr-2"></i>Create Job Posting
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-lightbulb text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Tips for a Great Job Posting</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Be specific about the role and responsibilities</li>
+                        <li>Include clear requirements and qualifications</li>
+                        <li>Highlight unique benefits and company culture</li>
+                        <li>Use keywords that candidates might search for</li>
+                        <li>Keep the description clear and easy to read</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

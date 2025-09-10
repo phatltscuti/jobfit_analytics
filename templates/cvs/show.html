@@ -1,0 +1,159 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ cv.name or 'CV Details' }} - JobFit Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                {{ cv.name or 'CV Details' }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                AI-analyzed CV information and details
+            </p>
+        </div>
+        <div class="mt-4 flex space-x-3 md:mt-0 md:ml-4">
+            <a href="{{ url_for('cvs_edit', cv_id=cv.id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+            <a href="{{ url_for('cvs_index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to CVs
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- CV Information -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Personal Information -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Personal Information</h3>
+                    <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Name</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ cv.name or 'Not provided' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Email</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ cv.email or 'Not provided' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Phone</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ cv.phone or 'Not provided' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Address</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ cv.address or 'Not provided' }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Education -->
+            {% if cv.education %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Education</h3>
+                    <div class="prose max-w-none">
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ cv.education }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Experience -->
+            {% if cv.experience %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Work Experience</h3>
+                    <div class="prose max-w-none">
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ cv.experience }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Skills -->
+            {% if cv.skills %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Skills</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for skill in cv.skills.split(',') %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-100 text-primary-800">
+                                {{ skill.strip() }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- CV Avatar -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6 text-center">
+                    <img class="mx-auto h-24 w-24 rounded-full" src="{{ url_for('static', filename='default-avatar.svg') }}" alt="{{ cv.name }}">
+                    <h3 class="mt-4 text-lg font-medium text-gray-900">{{ cv.name or 'Unknown' }}</h3>
+                    <p class="mt-1 text-sm text-gray-500">{{ cv.email or 'No email provided' }}</p>
+                </div>
+            </div>
+
+            <!-- CV Details -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">CV Details</h3>
+                    <dl class="space-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Uploaded</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ cv.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ cv.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                        </div>
+                        {% if cv.file_path %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Original File</dt>
+                            <dd class="mt-1">
+                                <a href="{{ url_for('cvs_view_pdf', cv_id=cv.id) }}" target="_blank" 
+                                   class="text-primary-600 hover:text-primary-500 text-sm font-medium">
+                                    <i class="fas fa-file-pdf mr-1"></i>View PDF
+                                </a>
+                            </dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Actions</h3>
+                    <div class="space-y-3">
+                        <a href="{{ url_for('cvs_edit', cv_id=cv.id) }}" 
+                           class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-edit mr-2"></i>Edit CV
+                        </a>
+                        <a href="{{ url_for('matching') }}?cv_id={{ cv.id }}" 
+                           class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-search mr-2"></i>Find Matching Jobs
+                        </a>
+                        <a href="{{ url_for('cvs_delete', cv_id=cv.id) }}" 
+                           class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
+                           onclick="return confirm('Are you sure you want to delete this CV?')">
+                            <i class="fas fa-trash mr-2"></i>Delete CV
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

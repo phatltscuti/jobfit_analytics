@@ -1,0 +1,142 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Edit Job - JobFit Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Edit Job
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Update job posting information and details
+            </p>
+        </div>
+        <div class="mt-4 flex space-x-3 md:mt-0 md:ml-4">
+            <a href="{{ url_for('jobs_show', job_id=job.id) }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-eye mr-2"></i>View Job
+            </a>
+            <a href="{{ url_for('jobs_index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Jobs
+            </a>
+        </div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <form method="POST" class="space-y-6">
+                <!-- Basic Information -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-700">Job Title *</label>
+                        <input type="text" name="title" id="title" value="{{ job.title }}" required 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                    
+                    <div>
+                        <label for="company" class="block text-sm font-medium text-gray-700">Company *</label>
+                        <input type="text" name="company" id="company" value="{{ job.company }}" required 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                    
+                    <div>
+                        <label for="location" class="block text-sm font-medium text-gray-700">Location *</label>
+                        <input type="text" name="location" id="location" value="{{ job.location }}" required 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                    
+                    <div>
+                        <label for="salary" class="block text-sm font-medium text-gray-700">Salary</label>
+                        <input type="text" name="salary" id="salary" value="{{ job.salary or '' }}" 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                    
+                    <div>
+                        <label for="employment_type" class="block text-sm font-medium text-gray-700">Employment Type</label>
+                        <select name="employment_type" id="employment_type" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select type</option>
+                            <option value="Full-time" {% if job.employment_type == 'Full-time' %}selected{% endif %}>Full-time</option>
+                            <option value="Part-time" {% if job.employment_type == 'Part-time' %}selected{% endif %}>Part-time</option>
+                            <option value="Contract" {% if job.employment_type == 'Contract' %}selected{% endif %}>Contract</option>
+                            <option value="Freelance" {% if job.employment_type == 'Freelance' %}selected{% endif %}>Freelance</option>
+                            <option value="Internship" {% if job.employment_type == 'Internship' %}selected{% endif %}>Internship</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="experience_level" class="block text-sm font-medium text-gray-700">Experience Level</label>
+                        <select name="experience_level" id="experience_level" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select level</option>
+                            <option value="Entry Level" {% if job.experience_level == 'Entry Level' %}selected{% endif %}>Entry Level</option>
+                            <option value="Mid Level" {% if job.experience_level == 'Mid Level' %}selected{% endif %}>Mid Level</option>
+                            <option value="Senior Level" {% if job.experience_level == 'Senior Level' %}selected{% endif %}>Senior Level</option>
+                            <option value="Executive" {% if job.experience_level == 'Executive' %}selected{% endif %}>Executive</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Job Description -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700">Job Description *</label>
+                    <textarea name="description" id="description" rows="6" required 
+                              class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none">{{ job.description or '' }}</textarea>
+                </div>
+                
+                <!-- Requirements -->
+                <div>
+                    <label for="requirements" class="block text-sm font-medium text-gray-700">Requirements</label>
+                    <textarea name="requirements" id="requirements" rows="4" 
+                              class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none">{{ job.requirements or '' }}</textarea>
+                </div>
+                
+                <!-- Benefits -->
+                <div>
+                    <label for="benefits" class="block text-sm font-medium text-gray-700">Benefits</label>
+                    <textarea name="benefits" id="benefits" rows="3" 
+                              class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none">{{ job.benefits or '' }}</textarea>
+                </div>
+                
+                <!-- Status -->
+                <div class="flex items-center">
+                    <input id="is_active" name="is_active" type="checkbox" {% if job.is_active %}checked{% endif %}
+                           class="h-5 w-5 text-primary-600 focus:ring-2 focus:ring-primary-500 border-2 border-gray-300 rounded transition-all duration-200">
+                    <label for="is_active" class="ml-2 block text-sm text-gray-900">
+                        Make this job posting active (visible to candidates)
+                    </label>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('jobs_show', job_id=job.id) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                        <i class="fas fa-save mr-2"></i>Update Job
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Current Job Info -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Current Job Information</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <p>This job was originally posted on {{ job.created_at.strftime('%B %d, %Y at %I:%M %p') }}.</p>
+                    <p class="mt-1">Last updated: {{ job.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

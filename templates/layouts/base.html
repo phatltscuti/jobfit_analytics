@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}JobFit Analytics{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#faf5ff',
+                            100: '#f3e8ff',
+                            200: '#e9d5ff',
+                            300: '#d8b4fe',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7c3aed',
+                            800: '#6b21a8',
+                            900: '#581c87',
+                        },
+                        secondary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        accent: {
+                            50: '#fdf4ff',
+                            100: '#fae8ff',
+                            200: '#f5d0fe',
+                            300: '#f0abfc',
+                            400: '#e879f9',
+                            500: '#d946ef',
+                            600: '#c026d3',
+                            700: '#a21caf',
+                            800: '#86198f',
+                            900: '#701a75',
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'bounce-in': 'bounceIn 0.6s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(10px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        bounceIn: {
+                            '0%': { transform: 'scale(0.3)', opacity: '0' },
+                            '50%': { transform: 'scale(1.05)' },
+                            '70%': { transform: 'scale(0.9)' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom CSS for components -->
+    <style>
+        .card-modern { 
+            background: white; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 1rem; 
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); 
+        }
+        .hover-lift { 
+            transform: translateY(0); 
+            transition: transform 0.2s ease-in-out; 
+        }
+        .hover-lift:hover { 
+            transform: translateY(-0.25rem); 
+        }
+        .btn-modern { 
+            background: linear-gradient(to right, #9333ea, #7c3aed); 
+            color: white; 
+            font-weight: 500; 
+            padding: 0.5rem 1rem; 
+            border-radius: 0.5rem; 
+            transition: all 0.2s ease-in-out; 
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); 
+        }
+        .btn-modern:hover { 
+            background: linear-gradient(to right, #7c3aed, #6b21a8); 
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); 
+        }
+        .gradient-text { 
+            background: linear-gradient(to right, #9333ea, #7c3aed); 
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
+        
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 50;
+            width: 320px;
+            height: 60px;
+            padding: 0;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .toast.show {
+            transform: translateX(0);
+        }
+        .toast.success {
+            background: #10b981;
+            color: white;
+        }
+        .toast.error {
+            background: #ef4444;
+            color: white;
+        }
+        .toast.warning {
+            background: #f59e0b;
+            color: white;
+        }
+        .toast.info {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        /* Toast content */
+        .toast-content {
+            position: relative;
+            z-index: 1;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Center everything */
+            gap: 12px;
+            height: 60px;
+            text-align: center;
+            width: 100%;
+        }
+        
+        /* Toast icon */
+        .toast-icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background-color: rgba(255, 255, 255, 0.2);
+            font-size: 14px;
+        }
+        
+        /* Toast message */
+        .toast-message {
+            font-size: 14px;
+            line-height: 1.4;
+            font-weight: 500;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60px;
+            width: 100%;
+        }
+        
+        /* Toast close button */
+        .toast-close {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: all 0.2s ease;
+            font-size: 12px;
+        }
+        .toast-close:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Toast progress bar */
+        .toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            transition: width linear;
+            border-radius: 0 0 12px 12px;
+        }
+        
+        /* Toast animation */
+        .toast.show {
+            animation: slideInRight 0.3s ease;
+        }
+        
+        .toast.hide {
+            animation: slideOutRight 0.3s ease;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+    
+    <!-- Main Layout -->
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <div class="w-64 bg-white shadow-lg border-r border-gray-200">
+            <!-- User Profile Section -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">David Grey. H</h3>
+                        <p class="text-xs text-gray-500">Project Manager</p>
+                    </div>
+                    <i class="fas fa-check-circle text-green-500 text-sm"></i>
+                </div>
+            </div>
+            
+            <!-- Navigation Menu -->
+            <nav class="mt-6">
+                <a href="{{ url_for('dashboard') }}" class="flex items-center px-6 py-3 text-white bg-purple-600 hover:bg-purple-700 transition-colors duration-200 {{ 'bg-purple-600 text-white' if request.endpoint == 'dashboard' else 'text-gray-700 hover:bg-gray-50 hover:text-purple-600' }}">
+                    <i class="fas fa-home w-5 h-5 mr-3"></i>
+                    Dashboard
+                </a>
+                <a href="{{ url_for('cvs_index') }}" class="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 hover:text-purple-600 transition-colors duration-200 {{ 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' if request.endpoint and 'cvs' in request.endpoint else '' }}">
+                    <i class="fas fa-file-alt w-5 h-5 mr-3"></i>
+                    CV Management
+                </a>
+                <a href="{{ url_for('jobs_index') }}" class="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 hover:text-purple-600 transition-colors duration-200 {{ 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' if request.endpoint and 'jobs' in request.endpoint else '' }}">
+                    <i class="fas fa-briefcase w-5 h-5 mr-3"></i>
+                    Job Postings
+                </a>
+                <a href="{{ url_for('matching') }}" class="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 hover:text-purple-600 transition-colors duration-200 {{ 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' if request.endpoint == 'matching' else '' }}">
+                    <i class="fas fa-search w-5 h-5 mr-3"></i>
+                    Job Matching
+                </a>
+                <a href="{{ url_for('settings') }}" class="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 hover:text-purple-600 transition-colors duration-200 {{ 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' if request.endpoint == 'settings' else '' }}">
+                    <i class="fas fa-cog w-5 h-5 mr-3"></i>
+                    Settings
+                </a>
+            </nav>
+            
+            <!-- Projects Section -->
+            <div class="mt-8 px-6">
+                <h4 class="text-sm font-semibold text-gray-900 mb-4">Projects</h4>
+                <button class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors duration-200">
+                    <i class="fas fa-plus text-sm"></i>
+                    <span class="text-sm font-medium">Add a project</span>
+                </button>
+            </div>
+            
+            <!-- Categories Section -->
+            <div class="mt-8 px-6">
+                <h4 class="text-sm font-semibold text-gray-900 mb-4">Categories</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="radio" name="category" value="free" class="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500" checked>
+                        <span class="text-sm text-gray-700">Free</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="radio" name="category" value="pro" class="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500">
+                        <span class="text-sm text-gray-700">Pro</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <!-- Left side - Logo and Search -->
+                    <div class="flex items-center space-x-6">
+                        <h1 class="text-2xl font-bold text-purple-600">Purple</h1>
+                        <div class="relative">
+                            <input type="text" placeholder="Search projects" 
+                                   class="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Right side - User profile and icons -->
+                    <div class="flex items-center space-x-4">
+                        <!-- Icons -->
+                        <button class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                            <i class="fas fa-expand text-lg"></i>
+                        </button>
+                        <button class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                            <i class="fas fa-envelope text-lg"></i>
+                        </button>
+                        <button class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg relative">
+                            <i class="fas fa-bell text-lg"></i>
+                            <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+                        </button>
+                        <button class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                            <i class="fas fa-power-off text-lg"></i>
+                        </button>
+                        <button class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                            <i class="fas fa-bars text-lg"></i>
+                        </button>
+                        
+                        <!-- User Profile -->
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-white text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">David Greymaax</p>
+                                <p class="text-xs text-gray-500">Project Manager</p>
+                            </div>
+                            <i class="fas fa-chevron-down text-xs text-gray-500"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Page Content -->
+            <main class="flex-1 p-6">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="toast {{ category }} show mb-4 flex" id="toast-{{ loop.index }}">
+                                <div class="flex items-center justify-between" style="margin: 0 0 0 16px; width: 100%;">
+                                    <span>{{ message }}</span>
+                                    <button onclick="hideToast('toast-{{ loop.index }}')" class="ml-4 text-white hover:text-gray-200" style="margin: 0 10px 0px 0;">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script>
+        // Toast notifications with countdown and icons
+        function showToast(message, type = 'info', duration = 5000) {
+            const toastContainer = document.getElementById('toast-container');
+            const toastId = 'toast-' + Date.now();
+            
+            // Get icon based on type
+            const icons = {
+                success: 'fas fa-check',
+                error: 'fas fa-times',
+                warning: 'fas fa-exclamation-triangle',
+                info: 'fas fa-info-circle'
+            };
+            
+            const toast = document.createElement('div');
+            toast.id = toastId;
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="flex items-center" style="display: flex; width: 100%; justify-content: center;">
+                    <span>${message}</span>
+                    <button onclick="hideToast('${toastId}')" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="toast-progress" style="width: 100%;"></div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Show toast
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            // COMMENTED OUT FOR TESTING - Toast will stay visible
+            /*
+            // Auto hide with countdown
+            if (duration > 0) {
+                const progressBar = toast.querySelector('.toast-progress');
+                let remainingTime = duration;
+                const interval = 50; // Update every 50ms for smooth animation
+                
+                const countdown = setInterval(() => {
+                    remainingTime -= interval;
+                    const percentage = (remainingTime / duration) * 100;
+                    progressBar.style.width = percentage + '%';
+                    
+                    if (remainingTime <= 0) {
+                        clearInterval(countdown);
+                        hideToast(toastId);
+                    }
+                }, interval);
+                
+                // Store interval ID for cleanup
+                toast.dataset.intervalId = countdown;
+            }
+            */
+        }
+        
+        function hideToast(toastId) {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                // Clear countdown interval if exists
+                if (toast.dataset.intervalId) {
+                    clearInterval(parseInt(toast.dataset.intervalId));
+                }
+                
+                // Add hide animation
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }
+        }
+        
+        // Auto hide existing toasts with countdown
+        document.addEventListener('DOMContentLoaded', function() {
+            const toasts = document.querySelectorAll('.toast.show');
+            toasts.forEach((toast, index) => {
+                // Add progress bar to existing toasts
+                const progressBar = document.createElement('div');
+                progressBar.className = 'toast-progress';
+                progressBar.style.width = '100%';
+                toast.appendChild(progressBar);
+                
+                // COMMENTED OUT FOR TESTING - Toast will stay visible
+                /*
+                // Start countdown for existing toasts
+                const duration = 5000;
+                let remainingTime = duration;
+                const interval = 50;
+                
+                const countdown = setInterval(() => {
+                    remainingTime -= interval;
+                    const percentage = (remainingTime / duration) * 100;
+                    progressBar.style.width = percentage + '%';
+                    
+                    if (remainingTime <= 0) {
+                        clearInterval(countdown);
+                        hideToast(toast.id);
+                    }
+                }, interval);
+                
+                // Store interval ID
+                toast.dataset.intervalId = countdown;
+                */
+            });
+        });
+        
+        // Clear flash messages on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/clear-flash', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).catch(err => console.log('Flash clear failed:', err));
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

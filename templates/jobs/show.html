@@ -1,0 +1,171 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ job.title }} - JobFit Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-3">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    {{ job.title }}
+                </h2>
+                {% if job.is_active %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        <i class="fas fa-check-circle mr-1"></i>Active
+                    </span>
+                {% else %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                        <i class="fas fa-pause-circle mr-1"></i>Inactive
+                    </span>
+                {% endif %}
+            </div>
+            <p class="mt-1 text-sm text-gray-500">
+                {{ job.company }} • {{ job.location }}
+            </p>
+        </div>
+        <div class="mt-4 flex space-x-3 md:mt-0 md:ml-4">
+            <a href="{{ url_for('jobs_edit', job_id=job.id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+            <a href="{{ url_for('matching') }}?job_id={{ job.id }}" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-search mr-2"></i>Find Matching CVs
+            </a>
+            <a href="{{ url_for('jobs_index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Jobs
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Job Details -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Job Description -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Job Description</h3>
+                    <div class="prose max-w-none">
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ job.description or 'No description provided' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Requirements -->
+            {% if job.requirements %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Requirements</h3>
+                    <div class="prose max-w-none">
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ job.requirements }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Benefits -->
+            {% if job.benefits %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Benefits</h3>
+                    <div class="prose max-w-none">
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ job.benefits }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Job Info -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Job Information</h3>
+                    <dl class="space-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Company</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.company }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Location</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.location }}</dd>
+                        </div>
+                        {% if job.salary %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Salary</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.salary }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if job.employment_type %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Employment Type</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.employment_type }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if job.experience_level %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Experience Level</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.experience_level }}</dd>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Status</dt>
+                            <dd class="mt-1">
+                                {% if job.is_active %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Active
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        Inactive
+                                    </span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Job Details -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Job Details</h3>
+                    <dl class="space-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Posted</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Actions</h3>
+                    <div class="space-y-3">
+                        <a href="{{ url_for('jobs_edit', job_id=job.id) }}" 
+                           class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-edit mr-2"></i>Edit Job
+                        </a>
+                        <a href="{{ url_for('matching') }}?job_id={{ job.id }}" 
+                           class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-search mr-2"></i>Find Matching CVs
+                        </a>
+                        <a href="{{ url_for('jobs_delete', job_id=job.id) }}" 
+                           class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
+                           onclick="return confirm('Are you sure you want to delete this job?')">
+                            <i class="fas fa-trash mr-2"></i>Delete Job
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

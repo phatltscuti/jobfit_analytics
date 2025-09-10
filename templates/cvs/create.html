@@ -1,0 +1,580 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Upload CV - JobFit Analytics{% endblock %}
+
+{% block content %}
+<!-- PDF.js Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Upload New CV
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Upload a PDF CV and let AI analyze it for you.
+            </p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4">
+            <a href="{{ url_for('cvs_index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to CVs
+            </a>
+        </div>
+</div>
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <!-- Left Column: Upload & Info (40%) -->
+        <div class="space-y-6 lg:col-span-2">
+            <!-- File Upload Section -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Upload CV File</h3>
+                    <form method="POST" enctype="multipart/form-data" id="cvForm">
+                        <!-- File Upload Area -->
+                        <div class="mt-1 flex justify-center px-6 pt-8 pb-8 border-2 border-gray-300 border-dashed rounded-lg hover:border-primary-400 transition-colors" id="uploadArea">
+                            <div class="space-y-1 text-center">
+                                <i class="fas fa-cloud-upload-alt text-gray-400 text-5xl mb-4"></i>
+                                <div class="flex text-sm text-gray-600">
+                                    <label for="file" class="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                                        <span>Choose PDF file</span>
+                                        <input id="file" name="file" type="file" accept=".pdf" required class="sr-only">
+                                    </label>
+                                    <p class="pl-1">or drag and drop</p>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">PDF files only, up to 10MB</p>
+                                <p class="text-xs text-gray-400 mt-1" id="fileInfo">No file selected</p>
+            </div>
+                    </div>
+                    
+                        <!-- Submit Button -->
+                        <div class="mt-6">
+                            <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                <i class="fas fa-upload mr-2"></i>Upload & Analyze CV
+                        </button>
+                    </div>
+                </form>
+                </div>
+            </div>
+
+            <!-- AI Analysis Info -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-robot text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-blue-800">AI-Powered Analysis</h3>
+                        <div class="mt-2 text-sm text-blue-700">
+                            <p>Our AI will automatically extract and analyze:</p>
+                            <ul class="list-disc list-inside mt-1 space-y-1 text-xs">
+                                <li>Personal information</li>
+                                <li>Education background</li>
+                                <li>Work experience</li>
+                                <li>Skills and competencies</li>
+                                <li>Professional summary</li>
+                            </ul>
+            </div>
+        </div>
+    </div>
+            </div>
+
+            <!-- AI Tips -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-lightbulb text-green-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-green-800">Tips for Best Results</h3>
+                        <div class="mt-2 text-sm text-green-700">
+                            <ul class="list-disc list-inside space-y-1 text-xs">
+                                <li>Use clear, high-quality PDF files</li>
+                                <li>Ensure text is selectable (not scanned images)</li>
+                                <li>Include complete contact information</li>
+                                <li>List all relevant work experience</li>
+                                <li>Include education and certifications</li>
+                </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Preview (60%) -->
+        <div class="space-y-6 lg:col-span-3">
+            <!-- CV Preview -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">CV Preview</h3>
+                    
+                    <!-- No File Selected State -->
+                    <div id="noFilePreview" class="text-center py-12">
+                        <i class="fas fa-file-pdf text-gray-300 text-6xl mb-4"></i>
+                        <h4 class="text-lg font-medium text-gray-900 mb-2">No CV Selected</h4>
+                        <p class="text-sm text-gray-500">Upload a PDF file to see preview</p>
+                    </div>
+
+                    <!-- File Preview State -->
+                    <div id="filePreview" class="hidden">
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-4">
+                                <i class="fas fa-file-pdf text-red-500 text-2xl mr-3"></i>
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-900" id="fileName">CV.pdf</h4>
+                                    <p class="text-xs text-gray-500" id="fileSize">0 KB</p>
+                                </div>
+                            </div>
+                            
+                            <!-- PDF Preview -->
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                                <div id="pdfContainer" class="hidden">
+                                    <div class="overflow-auto max-h-96">
+                                        <canvas id="pdfCanvas" class="mx-auto block"></canvas>
+                                    </div>
+                                </div>
+                                <div id="pdfPlaceholder" class="p-8 text-center">
+                                    <i class="fas fa-file-pdf text-gray-400 text-4xl mb-2"></i>
+                                    <p class="text-sm text-gray-500">PDF Preview</p>
+                                    <p class="text-xs text-gray-400 mt-1">Select a PDF file to preview</p>
+                                </div>
+                            </div>
+                            
+                            <!-- PDF Controls -->
+                            <div id="pdfControls" class="hidden mt-3 flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <button id="prevPage" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <i class="fas fa-chevron-left"></i> Prev
+                                    </button>
+                                    <span id="pageInfo" class="text-xs text-gray-600">Page 1 of 1</span>
+                                    <button id="nextPage" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button id="zoomOut" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <i class="fas fa-search-minus"></i>
+                                    </button>
+                                    <span id="zoomLevel" class="text-xs text-gray-600">100%</span>
+                                    <button id="zoomIn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <i class="fas fa-search-plus"></i>
+                                    </button>
+            </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+            <!-- Analysis Preview -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">AI Analysis Preview</h3>
+                    
+                    <div id="analysisPreview" class="space-y-4">
+                        <div class="text-center py-8">
+                            <i class="fas fa-brain text-gray-300 text-4xl mb-3"></i>
+                            <p class="text-sm text-gray-500">AI analysis will appear here after upload</p>
+                        </div>
+                    </div>
+        </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // PDF.js configuration
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    // File upload handling
+    const fileInput = document.getElementById('file');
+    const uploadArea = document.getElementById('uploadArea');
+    const noFilePreview = document.getElementById('noFilePreview');
+    const filePreview = document.getElementById('filePreview');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const fileInfo = document.getElementById('fileInfo');
+    const pdfContainer = document.getElementById('pdfContainer');
+    const pdfPlaceholder = document.getElementById('pdfPlaceholder');
+    const pdfControls = document.getElementById('pdfControls');
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const pageInfo = document.getElementById('pageInfo');
+    const zoomLevel = document.getElementById('zoomLevel');
+    const prevPage = document.getElementById('prevPage');
+    const nextPage = document.getElementById('nextPage');
+    const zoomIn = document.getElementById('zoomIn');
+    const zoomOut = document.getElementById('zoomOut');
+
+    let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let scale = 1.0;
+
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Update upload area
+            uploadArea.classList.remove('border-gray-300');
+            uploadArea.classList.add('border-primary-400', 'bg-primary-50');
+            
+            const icon = uploadArea.querySelector('i');
+            icon.classList.remove('fa-cloud-upload-alt', 'text-gray-400');
+            icon.classList.add('fa-file-pdf', 'text-primary-500');
+            
+            const text = uploadArea.querySelector('span');
+            text.textContent = file.name;
+            
+            // Update file info
+            fileInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+            
+            // Show preview
+            noFilePreview.classList.add('hidden');
+            filePreview.classList.remove('hidden');
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            
+            // Load and preview PDF
+            loadPDF(file);
+            
+            // Show analysis preview
+            showAnalysisPreview();
+        } else {
+            // Reset upload area
+            uploadArea.classList.remove('border-primary-400', 'bg-primary-50');
+            uploadArea.classList.add('border-gray-300');
+            
+            const icon = uploadArea.querySelector('i');
+            icon.classList.remove('fa-file-pdf', 'text-primary-500');
+            icon.classList.add('fa-cloud-upload-alt', 'text-gray-400');
+            
+            const text = uploadArea.querySelector('span');
+            text.textContent = 'Choose PDF file';
+            
+            fileInfo.textContent = 'No file selected';
+            
+            // Hide preview
+            noFilePreview.classList.remove('hidden');
+            filePreview.classList.add('hidden');
+            pdfContainer.classList.add('hidden');
+            pdfPlaceholder.classList.remove('hidden');
+            pdfControls.classList.add('hidden');
+        }
+    });
+
+    // Drag and drop handling
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('border-primary-400', 'bg-primary-50');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        if (!uploadArea.contains(e.relatedTarget)) {
+            uploadArea.classList.remove('border-primary-400', 'bg-primary-50');
+        }
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('border-primary-400', 'bg-primary-50');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // PDF handling functions
+    function loadPDF(file) {
+        const fileReader = new FileReader();
+        fileReader.onload = function(e) {
+            const typedArray = new Uint8Array(e.target.result);
+            pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
+                pdfDoc = pdf;
+                pageNum = 1;
+                pageRendering = false;
+                pageNumPending = null;
+                scale = 1.0;
+                
+                // Show PDF container and controls
+                pdfPlaceholder.classList.add('hidden');
+                pdfContainer.classList.remove('hidden');
+                pdfControls.classList.remove('hidden');
+                
+                // Render first page
+                renderPage(pageNum);
+                
+                // Update page info
+                updatePageInfo();
+                updateZoomInfo();
+                
+                // Show success toast for PDF preview
+                toast.info('PDF preview ready! You can navigate and zoom.', 4000);
+            }).catch(function(error) {
+                console.error('Error loading PDF:', error);
+                showPDFError();
+                toast.error('Failed to load PDF. Please try a different file.', 5000);
+            });
+        };
+        fileReader.readAsArrayBuffer(file);
+    }
+
+    function renderPage(num) {
+        pageRendering = true;
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({ scale: scale });
+            const canvas = document.getElementById('pdfCanvas');
+            const context = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            // Clear canvas
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            const renderTask = page.render(renderContext);
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+            }).catch(function(error) {
+                console.error('Error rendering page:', error);
+                pageRendering = false;
+            });
+        });
+    }
+
+    function showPDFError() {
+        pdfPlaceholder.innerHTML = `
+            <i class="fas fa-exclamation-triangle text-red-400 text-4xl mb-2"></i>
+            <p class="text-sm text-red-500">Error loading PDF</p>
+            <p class="text-xs text-red-400 mt-1">Please try a different file</p>
+        `;
+        pdfPlaceholder.classList.remove('hidden');
+        pdfContainer.classList.add('hidden');
+        pdfControls.classList.add('hidden');
+    }
+
+    function showAnalysisPreview() {
+        const analysisPreview = document.getElementById('analysisPreview');
+        analysisPreview.innerHTML = `
+            <div class="space-y-3">
+                <div class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin text-blue-500 text-2xl mb-2"></i>
+                    <p class="text-sm text-gray-600">Analyzing CV with AI...</p>
+                </div>
+            </div>
+        `;
+        
+        // Analyze PDF content with AI
+        analyzePDFWithAI();
+    }
+
+    async function analyzePDFWithAI() {
+        const fileInput = document.getElementById('file');
+        const file = fileInput.files[0];
+        
+        if (!file) return;
+        
+        try {
+            // Extract text from PDF
+            const pdfText = await extractTextFromPDF(file);
+            
+            // Send to AI for analysis
+            const response = await fetch('/api/analyze-cv-preview', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: pdfText })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                displayAnalysisResults(result.data);
+            } else {
+                displayAnalysisError(result.error);
+            }
+        } catch (error) {
+            console.error('Error analyzing PDF:', error);
+            displayAnalysisError('Failed to analyze CV. Please try again.');
+        }
+    }
+
+    async function extractTextFromPDF(file) {
+        return new Promise((resolve, reject) => {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                const typedArray = new Uint8Array(e.target.result);
+                pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
+                    let fullText = '';
+                    let pageCount = 0;
+                    
+                    function extractPageText(pageNum) {
+                        if (pageNum > pdf.numPages) {
+                            resolve(fullText);
+                            return;
+                        }
+                        
+                        pdf.getPage(pageNum).then(function(page) {
+                            page.getTextContent().then(function(textContent) {
+                                const pageText = textContent.items.map(item => item.str).join(' ');
+                                fullText += pageText + '\n';
+                                pageCount++;
+                                
+                                if (pageCount < pdf.numPages) {
+                                    extractPageText(pageNum + 1);
+                                } else {
+                                    resolve(fullText);
+                                }
+                            });
+                        });
+                    }
+                    
+                    extractPageText(1);
+                }).catch(reject);
+            };
+            fileReader.readAsArrayBuffer(file);
+        });
+    }
+
+    function displayAnalysisResults(data) {
+        const analysisPreview = document.getElementById('analysisPreview');
+        
+        const hasPersonalInfo = data.name && data.email && data.phone;
+        const hasEducation = data.education && data.education.trim().length > 0;
+        const hasExperience = data.experience && data.experience.trim().length > 0;
+        const hasSkills = data.skills && data.skills.trim().length > 0;
+        
+        analysisPreview.innerHTML = `
+            <div class="space-y-3">
+                <div class="flex items-center text-sm">
+                    <i class="fas fa-user text-gray-400 mr-2"></i>
+                    <span class="text-gray-600">Personal Information</span>
+                    ${hasPersonalInfo ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                </div>
+                <div class="flex items-center text-sm">
+                    <i class="fas fa-graduation-cap text-gray-400 mr-2"></i>
+                    <span class="text-gray-600">Education</span>
+                    ${hasEducation ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                </div>
+                <div class="flex items-center text-sm">
+                    <i class="fas fa-briefcase text-gray-400 mr-2"></i>
+                    <span class="text-gray-600">Work Experience</span>
+                    ${hasExperience ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                </div>
+                <div class="flex items-center text-sm">
+                    <i class="fas fa-cogs text-gray-400 mr-2"></i>
+                    <span class="text-gray-600">Skills</span>
+                    ${hasSkills ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                </div>
+                
+                ${hasPersonalInfo || hasEducation || hasExperience || hasSkills ? `
+                <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                        <span class="text-sm text-green-700 font-medium">CV Analysis Complete</span>
+                    </div>
+                    <p class="text-xs text-green-600 mt-1">AI has successfully analyzed your CV</p>
+                </div>
+                ` : `
+                <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                        <span class="text-sm text-yellow-700 font-medium">Limited Information Found</span>
+                    </div>
+                    <p class="text-xs text-yellow-600 mt-1">Some sections may need more detail</p>
+                </div>
+                `}
+            </div>
+        `;
+    }
+
+    function displayAnalysisError(error) {
+        const analysisPreview = document.getElementById('analysisPreview');
+        analysisPreview.innerHTML = `
+            <div class="space-y-3">
+                <div class="text-center py-4">
+                    <i class="fas fa-exclamation-circle text-red-500 text-2xl mb-2"></i>
+                    <p class="text-sm text-red-600">Analysis Failed</p>
+                    <p class="text-xs text-red-500 mt-1">${error}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // PDF controls
+    prevPage.addEventListener('click', function() {
+        if (pageNum <= 1 || pageRendering) return;
+        pageNum--;
+        renderPage(pageNum);
+        updatePageInfo();
+    });
+
+    nextPage.addEventListener('click', function() {
+        if (pageNum >= pdfDoc.numPages || pageRendering) return;
+        pageNum++;
+        renderPage(pageNum);
+        updatePageInfo();
+    });
+
+    zoomIn.addEventListener('click', function() {
+        if (scale >= 3.0 || pageRendering) return;
+        scale += 0.25;
+        renderPage(pageNum);
+        updateZoomInfo();
+    });
+
+    zoomOut.addEventListener('click', function() {
+        if (scale <= 0.5 || pageRendering) return;
+        scale -= 0.25;
+        renderPage(pageNum);
+        updateZoomInfo();
+    });
+
+    function updatePageInfo() {
+        if (pdfDoc) {
+            pageInfo.textContent = `Page ${pageNum} of ${pdfDoc.numPages}`;
+            prevPage.disabled = pageNum <= 1;
+            nextPage.disabled = pageNum >= pdfDoc.numPages;
+        }
+    }
+
+    function updateZoomInfo() {
+        zoomLevel.textContent = `${Math.round(scale * 100)}%`;
+        zoomOut.disabled = scale <= 0.5;
+        zoomIn.disabled = scale >= 3.0;
+    }
+
+    // Form submission with loading state
+    document.getElementById('cvForm').addEventListener('submit', function(e) {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Analyzing CV...';
+        submitBtn.disabled = true;
+        
+        // Show processing toast
+        toast.info('Processing CV with AI... This may take a moment.', 5000);
+});
+</script>
+{% endblock %}
