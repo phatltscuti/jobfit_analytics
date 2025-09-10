@@ -38,7 +38,13 @@ def main():
     
     # Get configuration
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
-    port = int(os.environ.get('FLASK_PORT', 5000))
+    # Safe parse port
+    port_str = os.environ.get('FLASK_PORT', '5000')
+    try:
+        port = int(port_str)
+    except (TypeError, ValueError):
+        print(f"⚠️  Invalid FLASK_PORT='{port_str}', falling back to 5000")
+        port = 5000
     debug = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     
     print(f"📊 Application running on http://{host}:{port}")
