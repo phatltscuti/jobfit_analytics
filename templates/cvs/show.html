@@ -145,11 +145,14 @@
                            class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
                             <i class="fas fa-search mr-2"></i>Find Matching Jobs
                         </a>
-                        <a href="{{ url_for('cvs_delete', cv_id=cv.id) }}" 
-                           class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
-                           onclick="return confirm('Are you sure you want to delete this CV?')">
-                            <i class="fas fa-trash mr-2"></i>Delete CV
-                        </a>
+                        <form method="POST" action="{{ url_for('cvs_delete', cv_id=cv.id) }}" class="w-full">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" 
+                                    class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
+                                    onclick="return confirm('Are you sure you want to delete this CV?')">
+                                <i class="fas fa-trash mr-2"></i>Delete CV
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>

@@ -3,6 +3,8 @@
 {% block title %}Upload CV - JobFit Analytics{% endblock %}
 
 {% block content %}
+<!-- CSRF Token -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <!-- PDF.js Library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <div class="space-y-6">
@@ -32,6 +34,7 @@
                 <div class="px-4 py-5 sm:p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Upload CV File</h3>
                     <form method="POST" enctype="multipart/form-data" id="cvForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <!-- File Upload Area -->
                         <div class="mt-1 flex justify-center px-6 pt-8 pb-8 border-2 border-gray-300 border-dashed rounded-lg hover:border-primary-400 transition-colors" id="uploadArea">
                             <div class="space-y-1 text-center">
@@ -298,36 +301,62 @@
 
     // PDF handling functions
     function loadPDF(file) {
+        console.log('Loading PDF file:', file.name);
+        
+        if (!pdfjsLib) {
+            console.error('PDF.js library not loaded');
+            showToast('PDF.js library not loaded. Please refresh the page.', 'error', 5000);
+            return;
+        }
+        
         const fileReader = new FileReader();
         fileReader.onload = function(e) {
-            const typedArray = new Uint8Array(e.target.result);
-            pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
-                pdfDoc = pdf;
-                pageNum = 1;
-                pageRendering = false;
-                pageNumPending = null;
-                scale = 1.0;
+            try {
+                console.log('File read successfully, starting PDF parsing...');
+                const typedArray = new Uint8Array(e.target.result);
                 
-                // Show PDF container and controls
-                pdfPlaceholder.classList.add('hidden');
-                pdfContainer.classList.remove('hidden');
-                pdfControls.classList.remove('hidden');
-                
-                // Render first page
-                renderPage(pageNum);
-                
-                // Update page info
-                updatePageInfo();
-                updateZoomInfo();
-                
-                // Show success toast for PDF preview
-                toast.info('PDF preview ready! You can navigate and zoom.', 4000);
-            }).catch(function(error) {
-                console.error('Error loading PDF:', error);
+                pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
+                    console.log('PDF document loaded successfully, pages:', pdf.numPages);
+                    
+                    pdfDoc = pdf;
+                    pageNum = 1;
+                    pageRendering = false;
+                    pageNumPending = null;
+                    scale = 1.0;
+                    
+                    // Show PDF container and controls
+                    pdfPlaceholder.classList.add('hidden');
+                    pdfContainer.classList.remove('hidden');
+                    pdfControls.classList.remove('hidden');
+                    
+                    console.log('PDF container shown, rendering first page...');
+                    
+                    // Render first page
+                    renderPage(pageNum);
+                    
+                    // Update page info
+                    updatePageInfo();
+                    updateZoomInfo();
+                    
+                    // Show success toast for PDF preview
+                    showToast('PDF preview ready! You can navigate and zoom.', 'success', 4000);
+                }).catch(function(error) {
+                    console.error('Error loading PDF document:', error);
+                    showPDFError();
+                    showToast('Failed to load PDF. Please try a different file.', 'error', 5000);
+                });
+            } catch (error) {
+                console.error('Error processing PDF file:', error);
                 showPDFError();
-                toast.error('Failed to load PDF. Please try a different file.', 5000);
-            });
+                showToast('Error processing PDF file. Please try again.', 'error', 5000);
+            }
         };
+        
+        fileReader.onerror = function(error) {
+            console.error('Error reading file:', error);
+            showToast('Error reading file. Please try again.', 'error', 5000);
+        };
+        
         fileReader.readAsArrayBuffer(file);
     }
 
@@ -394,22 +423,33 @@
         const fileInput = document.getElementById('file');
         const file = fileInput.files[0];
         
-        if (!file) return;
+        if (!file) {
+            console.log('No file selected');
+            return;
+        }
+        
+        console.log('Starting PDF analysis for file:', file.name);
         
         try {
             // Extract text from PDF
+            console.log('Extracting text from PDF...');
             const pdfText = await extractTextFromPDF(file);
+            console.log('PDF text extracted, length:', pdfText.length);
             
             // Send to AI for analysis
+            console.log('Sending to AI for analysis...');
             const response = await fetch('/api/analyze-cv-preview', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
                 },
                 body: JSON.stringify({ text: pdfText })
             });
             
+            console.log('AI response status:', response.status);
             const result = await response.json();
+            console.log('AI response:', result);
             
             if (result.success) {
                 displayAnalysisResults(result.data);
@@ -424,37 +464,71 @@
 
     async function extractTextFromPDF(file) {
         return new Promise((resolve, reject) => {
+            console.log('Starting PDF text extraction...');
+            
+            if (!pdfjsLib) {
+                reject(new Error('PDF.js library not loaded'));
+                return;
+            }
+            
             const fileReader = new FileReader();
             fileReader.onload = function(e) {
-                const typedArray = new Uint8Array(e.target.result);
-                pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
-                    let fullText = '';
-                    let pageCount = 0;
+                try {
+                    const typedArray = new Uint8Array(e.target.result);
+                    console.log('PDF file loaded, starting document parsing...');
                     
-                    function extractPageText(pageNum) {
-                        if (pageNum > pdf.numPages) {
-                            resolve(fullText);
-                            return;
+                    pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
+                        console.log('PDF document loaded, pages:', pdf.numPages);
+                        let fullText = '';
+                        let pageCount = 0;
+                        
+                        function extractPageText(pageNum) {
+                            if (pageNum > pdf.numPages) {
+                                console.log('PDF text extraction completed, total length:', fullText.length);
+                                resolve(fullText);
+                                return;
+                            }
+                            
+                            pdf.getPage(pageNum).then(function(page) {
+                                page.getTextContent().then(function(textContent) {
+                                    const pageText = textContent.items.map(item => item.str).join(' ');
+                                    fullText += pageText + '\n';
+                                    pageCount++;
+                                    
+                                    console.log(`Extracted page ${pageNum}/${pdf.numPages}`);
+                                    
+                                    if (pageCount < pdf.numPages) {
+                                        extractPageText(pageNum + 1);
+                                    } else {
+                                        console.log('PDF text extraction completed, total length:', fullText.length);
+                                        resolve(fullText);
+                                    }
+                                }).catch(function(error) {
+                                    console.error('Error extracting text from page:', error);
+                                    reject(error);
+                                });
+                            }).catch(function(error) {
+                                console.error('Error getting page:', error);
+                                reject(error);
+                            });
                         }
                         
-                        pdf.getPage(pageNum).then(function(page) {
-                            page.getTextContent().then(function(textContent) {
-                                const pageText = textContent.items.map(item => item.str).join(' ');
-                                fullText += pageText + '\n';
-                                pageCount++;
-                                
-                                if (pageCount < pdf.numPages) {
-                                    extractPageText(pageNum + 1);
-                                } else {
-                                    resolve(fullText);
-                                }
-                            });
-                        });
-                    }
-                    
-                    extractPageText(1);
-                }).catch(reject);
+                        extractPageText(1);
+                    }).catch(function(error) {
+                        console.error('Error loading PDF document:', error);
+                        reject(error);
+                    });
+                } catch (error) {
+                    console.error('Error processing PDF file:', error);
+                    reject(error);
+                }
             };
+            
+            fileReader.onerror = function(error) {
+                console.error('Error reading file:', error);
+                reject(error);
+            };
+            
             fileReader.readAsArrayBuffer(file);
         });
     }
@@ -574,7 +648,7 @@
         submitBtn.disabled = true;
         
         // Show processing toast
-        toast.info('Processing CV with AI... This may take a moment.', 5000);
+        showToast('Processing CV with AI... This may take a moment.', 'info', 5000);
 });
 </script>
 {% endblock %}

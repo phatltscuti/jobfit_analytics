@@ -98,7 +98,7 @@
             color: white; 
             font-weight: 500; 
             padding: 0.5rem 1rem; 
-            border-radius: 0.5rem; 
+            border-radius: 0.5rem;
             transition: all 0.2s ease-in-out; 
             box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); 
         }
@@ -252,6 +252,20 @@
                 opacity: 0;
             }
         }
+        
+        /* Dropdown menu */
+        .group:hover .group-hover\:opacity-100 {
+            opacity: 1;
+        }
+        
+        .group:hover .group-hover\:visible {
+            visibility: visible;
+        }
+        
+        /* Smooth transitions for dropdown */
+        .dropdown-menu {
+            transition: all 0.2s ease-in-out;
+        }
     </style>
     
     <!-- Font Awesome -->
@@ -275,8 +289,8 @@
                         <i class="fas fa-user text-white"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-semibold text-gray-900">David Grey. H</h3>
-                        <p class="text-xs text-gray-500">Project Manager</p>
+                        <h3 class="text-sm font-semibold text-gray-900">{{ current_user.username if current_user.is_authenticated else 'Guest' }}</h3>
+                        <p class="text-xs text-gray-500">{{ 'Administrator' if current_user.is_authenticated and current_user.is_admin else 'User' }}</p>
                     </div>
                     <i class="fas fa-check-circle text-green-500 text-sm"></i>
                 </div>
@@ -284,27 +298,27 @@
             
             <!-- Navigation Menu -->
             <nav class="mt-6">
-                <a href="{{ url_for('dashboard') }}" class="flex items-center px-6 py-3 text-white bg-purple-600 hover:bg-purple-700 transition-colors duration-200 {{ 'bg-purple-600 text-white' if request.endpoint == 'dashboard' else 'text-gray-700 hover:bg-gray-50 hover:text-purple-600' }}">
+                <a href="{{ url_for('dashboard') }}" class="flex items-center px-6 py-3 transition-colors duration-200 {{ 'bg-purple-600 text-white' if request.endpoint == 'dashboard' else 'text-gray-700 hover:bg-gray-50 hover:text-purple-600' }}">
                     <i class="fas fa-home w-5 h-5 mr-3"></i>
                     Dashboard
                 </a>
-                <a href="{{ url_for('cvs_index') }}" class="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 hover:text-purple-600 transition-colors duration-200 {{ 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' if request.endpoint and 'cvs' in request.endpoint else '' }}">
+                <a href="{{ url_for('cvs_index') }}" class="flex items-center px-6 py-3 transition-colors duration-200 {{ 'bg-purple-600 text-white' if request.endpoint and 'cvs' in request.endpoint else 'text-gray-700 hover:bg-gray-50 hover:text-purple-600' }}">
                     <i class="fas fa-file-alt w-5 h-5 mr-3"></i>
                     CV Management
                 </a>
-                <a href="{{ url_for('jobs_index') }}" class="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 hover:text-purple-600 transition-colors duration-200 {{ 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' if request.endpoint and 'jobs' in request.endpoint else '' }}">
+                <a href="{{ url_for('jobs_index') }}" class="flex items-center px-6 py-3 transition-colors duration-200 {{ 'bg-purple-600 text-white' if request.endpoint and 'jobs' in request.endpoint else 'text-gray-700 hover:bg-gray-50 hover:text-purple-600' }}">
                     <i class="fas fa-briefcase w-5 h-5 mr-3"></i>
                     Job Postings
                 </a>
-                <a href="{{ url_for('matching') }}" class="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 hover:text-purple-600 transition-colors duration-200 {{ 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' if request.endpoint == 'matching' else '' }}">
+                <a href="{{ url_for('matching') }}" class="flex items-center px-6 py-3 transition-colors duration-200 {{ 'bg-purple-600 text-white' if request.endpoint == 'matching' else 'text-gray-700 hover:bg-gray-50 hover:text-purple-600' }}">
                     <i class="fas fa-search w-5 h-5 mr-3"></i>
                     Job Matching
                 </a>
-                <a href="{{ url_for('settings') }}" class="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 hover:text-purple-600 transition-colors duration-200 {{ 'bg-purple-50 text-purple-600 border-r-2 border-purple-600' if request.endpoint == 'settings' else '' }}">
+                <a href="{{ url_for('settings') }}" class="flex items-center px-6 py-3 transition-colors duration-200 {{ 'bg-purple-600 text-white' if request.endpoint == 'settings' else 'text-gray-700 hover:bg-gray-50 hover:text-purple-600' }}">
                     <i class="fas fa-cog w-5 h-5 mr-3"></i>
                     Settings
                 </a>
-            </nav>
+                    </nav>
             
             <!-- Projects Section -->
             <div class="mt-8 px-6">
@@ -338,7 +352,7 @@
                 <div class="flex items-center justify-between">
                     <!-- Left side - Logo and Search -->
                     <div class="flex items-center space-x-6">
-                        <h1 class="text-2xl font-bold text-purple-600">Purple</h1>
+                        <h1 class="text-2xl font-bold text-purple-600">JobFit Analytics</h1>
                         <div class="relative">
                             <input type="text" placeholder="Search projects" 
                                    class="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
@@ -367,15 +381,25 @@
                         </button>
                         
                         <!-- User Profile -->
-                        <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-3 relative group">
                             <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                                 <i class="fas fa-user text-white text-sm"></i>
                             </div>
                             <div>
-                                <p class="text-sm font-medium text-gray-900">David Greymaax</p>
-                                <p class="text-xs text-gray-500">Project Manager</p>
+                                <p class="text-sm font-medium text-gray-900">{{ current_user.username if current_user.is_authenticated else 'Guest' }}</p>
+                                <p class="text-xs text-gray-500">{{ 'Administrator' if current_user.is_authenticated and current_user.is_admin else 'User' }}</p>
                             </div>
-                            <i class="fas fa-chevron-down text-xs text-gray-500"></i>
+                            <i class="fas fa-chevron-down text-xs text-gray-500 cursor-pointer"></i>
+                            
+                            <!-- Dropdown Menu -->
+                            <div class="absolute right-0 top-full mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-in-out">
+                                <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150">
+                                    <i class="fas fa-user mr-2"></i>Profile
+                                </a>
+                                <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -383,9 +407,9 @@
             
             <!-- Page Content -->
             <main class="flex-1 p-6">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
                             <div class="toast {{ category }} show mb-4 flex" id="toast-{{ loop.index }}">
                                 <div class="flex items-center justify-between" style="margin: 0 0 0 16px; width: 100%;">
                                     <span>{{ message }}</span>
@@ -393,16 +417,16 @@
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </div>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-                
-                {% block content %}{% endblock %}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    {% block content %}{% endblock %}
             </main>
         </div>
     </div>
-    
+
     <!-- JavaScript -->
     <script>
         // Toast notifications with countdown and icons

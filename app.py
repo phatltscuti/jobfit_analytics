@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
@@ -25,6 +26,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 # Initialize extensions
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+csrf = CSRFProtect(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -97,6 +99,12 @@ class Settings(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Add CSRF token to template context
+@app.context_processor
+def inject_csrf_token():
+    from flask_wtf.csrf import generate_csrf
+    return dict(csrf_token=generate_csrf)
 
 # Utility functions
 def extract_text_from_pdf(pdf_path):
@@ -432,21 +440,32 @@ def cvs_view_pdf(cv_id):
 def cvs_delete(cv_id):
     cv = CV.query.get_or_404(cv_id)
     
-    # Delete files
-    if cv.file_path:
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], cv.file_path)
-        if os.path.exists(file_path):
-            os.remove(file_path)
+    # Check if user has permission to delete this CV
+    if not current_user.is_admin and cv.user_id != current_user.id:
+        flash('You do not have permission to delete this CV.', 'error')
+        return redirect(url_for('cvs_index'))
     
-    if cv.avatar:
-        avatar_path = os.path.join(app.config['UPLOAD_FOLDER'], cv.avatar)
-        if os.path.exists(avatar_path):
-            os.remove(avatar_path)
+    try:
+        # Delete files
+        if cv.file_path:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], cv.file_path)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        if cv.avatar:
+            avatar_path = os.path.join(app.config['UPLOAD_FOLDER'], cv.avatar)
+            if os.path.exists(avatar_path):
+                os.remove(avatar_path)
+        
+        db.session.delete(cv)
+        db.session.commit()
+        
+        flash('CV deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting CV. Please try again.', 'error')
+        print(f"Error deleting CV: {e}")
     
-    db.session.delete(cv)
-    db.session.commit()
-    
-    flash('CV deleted successfully!', 'success')
     return redirect(url_for('cvs_index'))
 
 @app.route('/jobs')
