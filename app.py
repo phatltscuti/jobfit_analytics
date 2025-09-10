@@ -17,6 +17,10 @@ from PIL import Image
 import openai
 import requests
 from dotenv import load_dotenv
+from langdetect import detect, DetectorFactory
+
+# Make language detection deterministic
+DetectorFactory.seed = 0
 
 # Load environment variables
 load_dotenv()
@@ -38,6 +42,61 @@ login_manager.login_view = 'login'
 
 # OpenAI configuration
 openai.api_key = os.environ.get('OPENAI_API_KEY')
+
+# Default matching criteria used when user does not provide custom criteria
+DEFAULT_MATCHING_CRITERIA = (
+    "Bạn là một hệ thống chấm điểm mức độ phù hợp giữa Job Description (JD) và CV ứng viên.\n\n"
+    "## Nhiệm vụ\n"
+    "- So sánh JD và CV theo 15 tiêu chí sau.\n"
+    "- Chấm điểm mỗi tiêu chí theo thang 0–100% theo đúng công thức.\n"
+    "- Nhân với Trọng số để tính điểm quy đổi.\n"
+    "- Tính tổng điểm = Σ(Điểm × Trọng số) / 30.\n"
+    "- Xuất kết quả gồm:\n"
+    "  1. Bảng chi tiết: [Tiêu chí | Điểm (%) | Trọng số | Điểm quy đổi | Giải thích]\n"
+    "  2. Tổng điểm cuối cùng (%)\n"
+    "  3. Mức đánh giá (Excellent / Good / Average / Low match / Not match)\n\n"
+    "## Công thức cho từng tiêu chí\n"
+    "1. Seniority / Level (Trọng số 3, Must-have)\n"
+    "   - Bằng JD = 100%; Thấp hơn = 0%; Cao hơn 1 bậc = 75%; Cao hơn 2 bậc = 60%; Cao hơn ≥3 bậc = 50%\n\n"
+    "2. Core Skills (Trọng số 3, Must-have)\n"
+    "   - ≥80% skill JD có trong CV = 100%; 50–79% = 50%; <50% = 0%\n\n"
+    "3. Ngôn ngữ yêu cầu (Trọng số 3, Must-have)\n"
+    "   - Đúng yêu cầu = 100%; Thấp hơn 1 bậc = 70%; Thấp hơn ≥2 bậc hoặc không có = 0%\n\n"
+    "4. Địa điểm / Work model (Trọng số 3, Must-have)\n"
+    "   - Trùng = 100%; Khác = 0%\n\n"
+    "5. Visa / Quyền lao động (Trọng số 3, Must-have)\n"
+    "   - Đáp ứng = 100%; Không = 0%\n\n"
+    "6. Secondary Skills (Trọng số 2, High)\n"
+    "   - (Số skill khớp / Tổng skill nice-to-have) × 100%\n\n"
+    "7. Số năm kinh nghiệm (Trọng số 2, High)\n"
+    "   - CV ≥ JD = 100%; Nếu thiếu: 100% – (20% × số năm thiếu), min = 0%\n\n"
+    "8. Recency (Trọng số 2, High)\n"
+    "   - Skill chính JD xuất hiện trong: ≤2 năm = 100%; 3–5 năm = 70%; >5 năm = 40%; Không có = 0%\n\n"
+    "9. Domain / Industry (Trọng số 2, High)\n"
+    "   - Đúng domain = 100%; Gần giống = 70%; Khác hoàn toàn = 0%\n\n"
+    "10. Thành tích / KPI (Trọng số 2, High)\n"
+    "    - Có KPI định lượng liên quan JD = 100%; Có nhưng không định lượng = 70%; Không có = 0%\n\n"
+    "11. Stack / Tool version (Trọng số 2, High)\n"
+    "    - Đúng tool/version = 100%; Tool đúng nhưng version thấp hơn = 70%; Tool khác tương tự = 50%; Không liên quan = 0%\n\n"
+    "12. Soft skills (Trọng số 1, Medium)\n"
+    "    - Có rõ ràng (teamwork, leadership, communication) = 100%; Có nhưng chung chung = 50%; Không có = 0%\n\n"
+    "13. Culture / Process fit (Trọng số 1, Medium)\n"
+    "    - Agile/Scrum/Startup đúng JD = 100%; Khác framework = 50%; Không có = 0%\n\n"
+    "14. Extra languages (Trọng số 1, Medium)\n"
+    "    - Có đúng bonus = 100%; Có ngôn ngữ khác hữu ích = 50%; Không có = 0%\n\n"
+    "15. Certificates (Trọng số 1, Low)\n"
+    "    - Có đúng chứng chỉ bắt buộc = 100%; Có chứng chỉ liên quan khác = 50%; Không có = 0%\n\n"
+    "## Thang đánh giá\n"
+    "- Excellent: ≥85%\n"
+    "- Good: 70–84%\n"
+    "- Average: 50–69%\n"
+    "- Low match: 30–49%\n"
+    "- Not match: <30%\n\n"
+    "## Output\n"
+    "- Bảng chấm điểm chi tiết 15 tiêu chí\n"
+    "- Tổng điểm (%)\n"
+    "- Nhận xét mức độ phù hợp\n"
+)
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -78,6 +137,21 @@ class CV(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
+    # Matching criteria fields (candidate-side)
+    cv_seniority = db.Column(db.String(50))
+    cv_core_skills = db.Column(db.Text)
+    cv_languages = db.Column(db.String(200))
+    cv_work_model = db.Column(db.String(50))
+    cv_visa_status = db.Column(db.String(50))
+    cv_secondary_skills = db.Column(db.Text)
+    cv_years_experience = db.Column(db.Integer)
+    cv_recency_years = db.Column(db.Integer)
+    cv_domain = db.Column(db.String(100))
+    cv_kpi = db.Column(db.Text)
+    cv_stack_versions = db.Column(db.Text)
+    cv_soft_skills = db.Column(db.Text)
+    cv_culture_process = db.Column(db.String(100))
+
 class Job(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -100,6 +174,21 @@ class Job(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Matching criteria fields (JD-side)
+    criteria_seniority = db.Column(db.String(50))
+    criteria_core_skills = db.Column(db.Text)
+    criteria_language = db.Column(db.String(100))
+    criteria_work_model = db.Column(db.String(50))
+    criteria_visa_required = db.Column(db.Boolean)
+    criteria_secondary_skills = db.Column(db.Text)
+    criteria_years_experience = db.Column(db.Integer)
+    criteria_recency_years = db.Column(db.Integer)
+    criteria_domain = db.Column(db.String(100))
+    criteria_kpi_required = db.Column(db.Boolean)
+    criteria_stack_versions = db.Column(db.Text)
+    criteria_soft_skills = db.Column(db.Text)
+    criteria_culture_process = db.Column(db.String(100))
 
 class Settings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -236,48 +325,89 @@ def _safe_parse_json(text: str):
     return None
 
 def analyze_cv_with_openai(text):
-    """Analyze CV text using OpenAI API"""
-    # print("Analyzing CV with OpenAI API", text)
+    """Analyze CV text using OpenAI API and extract full 13-field criteria."""
     try:
+        # Try to detect source language to preserve original language in outputs
+        src_lang = None
+        try:
+            src_lang = detect(text) if text and text.strip() else None
+        except Exception:
+            src_lang = None
+
+        lang_instr = "Return ALL field values strictly in the ORIGINAL LANGUAGE of the CV. DO NOT TRANSLATE OR PARAPHRASE."  # default
+        if src_lang == 'vi':
+            lang_instr = (
+                "Toan bo gia tri phai giu NGUYEN NGON NGU TIENG VIET nhu trong CV. KHONG dich, khong viet lai. "
+                "Dung nguyen cum tu/ cau trong CV neu co the."
+            )
+
         prompt = f"""
-        Analyze this CV text and extract the following information in JSON format.
-        IMPORTANT: All values must be STRINGS, not arrays or objects.
-        
+        You are a strict JSON generator. Extract CV info as a SINGLE JSON object.
+        {lang_instr}
+        All values MUST be strings, except years/recency which can be integers. No extra commentary.
+        Required keys:
         {{
-            "name": "Full name as string",
-            "email": "Email address as string",
-            "phone": "Phone number as string",
-            "address": "Address as string",
-            "education": "Education details as a single string (not array)",
-            "experience": "Work experience as a single string (not array)",
-            "skills": "Skills and competencies as a single string (not array)"
+          "name": "",
+          "email": "",
+          "phone": "",
+          "address": "",
+          "education": "",
+          "experience": "",
+          "skills": "",
+          "seniority": "Entry|Mid|Senior|Lead|",
+          "core_skills": "comma separated",
+          "languages": "e.g., English B2; Japanese N3",
+          "work_model": "Remote|On-site|Hybrid|",
+          "visa_status": "Eligible|Not Eligible|",
+          "secondary_skills": "comma separated",
+          "years_experience": 0,
+          "recency_years": 0,
+          "domain": "e.g., Fintech|E-commerce|",
+          "kpi": "quantified achievements (use original phrases)",
+          "stack_versions": "e.g., React 18, Node 18",
+          "soft_skills": "comma separated",
+          "culture_process": "e.g., Agile, Scrum"
         }}
-        
+
         CV Text:
-        {text[:3000]}  # Limit text length
+        {text[:3000]}
         """
-        
+
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1000,
-            temperature=0.3
+            messages=[
+                {"role": "system", "content": "You must output ONLY a valid JSON object. Do not translate; preserve original language exactly."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1200,
+            temperature=0.2
         )
-        
-        result = response.choices[0].message.content
-        data = _safe_parse_json(result) or {}
-        
-        # Ensure all values are strings
+
+        result = response.choices[0].message.content.strip()
+        # Attempt to find JSON object boundaries if model included extra text
+        start = result.find('{')
+        end = result.rfind('}')
+        if start != -1 and end != -1:
+            result = result[start:end+1]
+        data = json.loads(result)
+
+        # Normalize to strings where applicable
         processed_data = {}
         for key, value in data.items():
-            if isinstance(value, (list, dict)):
-                if isinstance(value, list):
-                    processed_data[key] = ', '.join(str(item) for item in value)
-                else:
-                    processed_data[key] = str(value)
+            if key in ("years_experience", "recency_years"):
+                try:
+                    processed_data[key] = int(value) if value is not None and str(value).strip() != '' else None
+                except Exception:
+                    processed_data[key] = None
             else:
-                processed_data[key] = str(value) if value is not None else ""
-        
+                if isinstance(value, (list, dict)):
+                    if isinstance(value, list):
+                        processed_data[key] = ', '.join(str(item) for item in value)
+                    else:
+                        processed_data[key] = str(value)
+                else:
+                    processed_data[key] = str(value) if value is not None else ""
+
         return processed_data
     except Exception as e:
         print(f"OpenAI API error: {e}")
@@ -288,7 +418,20 @@ def analyze_cv_with_openai(text):
             "address": "",
             "education": "",
             "experience": "",
-            "skills": ""
+            "skills": "",
+            "seniority": "",
+            "core_skills": "",
+            "languages": "",
+            "work_model": "",
+            "visa_status": "",
+            "secondary_skills": "",
+            "years_experience": None,
+            "recency_years": None,
+            "domain": "",
+            "kpi": "",
+            "stack_versions": "",
+            "soft_skills": "",
+            "culture_process": ""
         }
 
 
@@ -472,6 +615,19 @@ def cvs_create():
             
             # Analyze with OpenAI
             ai_data = analyze_cv_with_openai(text)
+
+            # Language detection fallback/merge
+            try:
+                detected_lang = detect(text) if text and text.strip() else None
+            except Exception:
+                detected_lang = None
+            if detected_lang:
+                if not ai_data.get('languages'):
+                    ai_data['languages'] = detected_lang
+                else:
+                    langs = ai_data['languages']
+                    if detected_lang.lower() not in langs.lower():
+                        ai_data['languages'] = f"{langs}, {detected_lang}"
             
             # Fallback if AI analysis fails
             if not ai_data or not ai_data.get('name'):
@@ -495,7 +651,21 @@ def cvs_create():
                 experience=ai_data.get('experience', ''),
                 skills=ai_data.get('skills', ''),
                 file_path=f"cvs/{filename}",
-                user_id=current_user.id
+                user_id=current_user.id,
+                # Try to prefill CV criteria if AI returned similar fields (best-effort)
+                cv_seniority=ai_data.get('seniority'),
+                cv_core_skills=ai_data.get('core_skills'),
+                cv_languages=ai_data.get('languages'),
+                cv_work_model=ai_data.get('work_model'),
+                cv_visa_status=ai_data.get('visa_status'),
+                cv_secondary_skills=ai_data.get('secondary_skills'),
+                cv_years_experience=ai_data.get('years_experience'),
+                cv_recency_years=ai_data.get('recency_years'),
+                cv_domain=ai_data.get('domain'),
+                cv_kpi=ai_data.get('kpi'),
+                cv_stack_versions=ai_data.get('stack_versions'),
+                cv_soft_skills=ai_data.get('soft_skills'),
+                cv_culture_process=ai_data.get('culture_process')
             )
             
             # Use default avatar
@@ -530,6 +700,20 @@ def cvs_edit(cv_id):
         cv.education = request.form['education']
         cv.experience = request.form['experience']
         cv.skills = request.form['skills']
+        # Matching criteria (CV) updates
+        cv.cv_seniority = request.form.get('cv_seniority') or None
+        cv.cv_core_skills = request.form.get('cv_core_skills') or None
+        cv.cv_languages = request.form.get('cv_languages') or None
+        cv.cv_work_model = request.form.get('cv_work_model') or None
+        cv.cv_visa_status = request.form.get('cv_visa_status') or None
+        cv.cv_secondary_skills = request.form.get('cv_secondary_skills') or None
+        cv.cv_years_experience = int(request.form.get('cv_years_experience')) if request.form.get('cv_years_experience') else None
+        cv.cv_recency_years = int(request.form.get('cv_recency_years')) if request.form.get('cv_recency_years') else None
+        cv.cv_domain = request.form.get('cv_domain') or None
+        cv.cv_kpi = request.form.get('cv_kpi') or None
+        cv.cv_stack_versions = request.form.get('cv_stack_versions') or None
+        cv.cv_soft_skills = request.form.get('cv_soft_skills') or None
+        cv.cv_culture_process = request.form.get('cv_culture_process') or None
         cv.updated_at = datetime.now(timezone.utc)
         
         db.session.commit()
@@ -663,6 +847,20 @@ def jobs_create():
             industry=request.form.get('industry', ''),
             skills_required=request.form.get('skills_required', ''),
             education_required=request.form.get('education_required', ''),
+            # Matching criteria inputs
+            criteria_seniority=request.form.get('criteria_seniority') or None,
+            criteria_core_skills=request.form.get('criteria_core_skills') or None,
+            criteria_language=request.form.get('criteria_language') or None,
+            criteria_work_model=request.form.get('criteria_work_model') or None,
+            criteria_visa_required=(True if request.form.get('criteria_visa_required')=='true' else (False if request.form.get('criteria_visa_required')=='false' else None)),
+            criteria_secondary_skills=request.form.get('criteria_secondary_skills') or None,
+            criteria_years_experience=int(request.form.get('criteria_years_experience')) if request.form.get('criteria_years_experience') else None,
+            criteria_recency_years=int(request.form.get('criteria_recency_years')) if request.form.get('criteria_recency_years') else None,
+            criteria_domain=request.form.get('criteria_domain') or None,
+            criteria_kpi_required=(True if request.form.get('criteria_kpi_required')=='true' else (False if request.form.get('criteria_kpi_required')=='false' else None)),
+            criteria_stack_versions=request.form.get('criteria_stack_versions') or None,
+            criteria_soft_skills=request.form.get('criteria_soft_skills') or None,
+            criteria_culture_process=request.form.get('criteria_culture_process') or None,
             user_id=current_user.id
         )
         
@@ -702,6 +900,20 @@ def jobs_edit(job_id):
         job.industry = request.form.get('industry', '')
         job.skills_required = request.form.get('skills_required', '')
         job.education_required = request.form.get('education_required', '')
+        # Matching criteria inputs
+        job.criteria_seniority = request.form.get('criteria_seniority') or None
+        job.criteria_core_skills = request.form.get('criteria_core_skills') or None
+        job.criteria_language = request.form.get('criteria_language') or None
+        job.criteria_work_model = request.form.get('criteria_work_model') or None
+        job.criteria_visa_required = (True if request.form.get('criteria_visa_required')=='true' else (False if request.form.get('criteria_visa_required')=='false' else None))
+        job.criteria_secondary_skills = request.form.get('criteria_secondary_skills') or None
+        job.criteria_years_experience = int(request.form.get('criteria_years_experience')) if request.form.get('criteria_years_experience') else None
+        job.criteria_recency_years = int(request.form.get('criteria_recency_years')) if request.form.get('criteria_recency_years') else None
+        job.criteria_domain = request.form.get('criteria_domain') or None
+        job.criteria_kpi_required = (True if request.form.get('criteria_kpi_required')=='true' else (False if request.form.get('criteria_kpi_required')=='false' else None))
+        job.criteria_stack_versions = request.form.get('criteria_stack_versions') or None
+        job.criteria_soft_skills = request.form.get('criteria_soft_skills') or None
+        job.criteria_culture_process = request.form.get('criteria_culture_process') or None
         job.updated_at = datetime.now(timezone.utc)
         
         db.session.commit()
@@ -725,22 +937,103 @@ def jobs_delete(job_id):
 def profile():
     return render_template('profile.html')
 
-@app.route('/matching')
+@app.route('/matching', methods=['GET', 'POST'])
 @login_required
 def matching():
-    """Job and CV matching page"""
+    """Job and CV matching page with multi-CV selection"""
     # Filter CVs and Jobs by current user or show all if admin
     if current_user.is_admin:
-        cvs = CV.query.all()
-        jobs = Job.query.filter_by(is_active=True).all()
+        cvs = CV.query.order_by(CV.created_at.desc()).all()
+        jobs = Job.query.filter_by(is_active=True).order_by(Job.created_at.desc()).all()
     else:
         cvs = CV.query.filter(
             (CV.user_id == current_user.id) | (CV.user_id.is_(None))
-        ).all()
+        ).order_by(CV.created_at.desc()).all()
         jobs = Job.query.filter(
             ((Job.user_id == current_user.id) | (Job.user_id.is_(None))) & (Job.is_active == True)
-        ).all()
-    return render_template('matching.html', cvs=cvs, jobs=jobs)
+        ).order_by(Job.created_at.desc()).all()
+
+    selected_job = None
+    selected_cv_ids = []
+    match_results = []
+    pass_threshold = 70
+    criteria = ''
+
+    # Support preselect via query param
+    pre_job_id = request.args.get('job_id', type=int)
+    if pre_job_id:
+        selected_job = Job.query.get(pre_job_id)
+
+    if request.method == 'POST':
+        job_id = request.form.get('job_id', type=int)
+        # read threshold and criteria
+        try:
+            pass_threshold = int(request.form.get('pass_threshold', pass_threshold))
+        except (TypeError, ValueError):
+            pass_threshold = 70
+        criteria = (request.form.get('criteria') or '').strip()
+
+        selected_cv_ids = request.form.getlist('cv_ids')
+        selected_cv_ids = [int(cv_id) for cv_id in selected_cv_ids if cv_id.isdigit()]
+
+        if job_id and selected_cv_ids:
+            selected_job = Job.query.get_or_404(job_id)
+            for cv_id in selected_cv_ids:
+                cv = CV.query.get_or_404(cv_id)
+
+                cv_text = f"""
+                Name: {cv.name}
+                Email: {cv.email}
+                Phone: {cv.phone}
+                Address: {cv.address}
+                Education: {cv.education}
+                Experience: {cv.experience}
+                Skills: {cv.skills}
+                """
+
+                job_text = f"""
+                Title: {selected_job.title}
+                Company: {selected_job.company}
+                Description: {selected_job.description}
+                Requirements: {selected_job.requirements}
+                Location: {selected_job.location}
+                Employment Type: {selected_job.employment_type}
+                Salary Min: {selected_job.salary_min}
+                Salary Max: {selected_job.salary_max}
+                """
+                if criteria:
+                    job_text += f"\nCustom Matching Criteria (must prioritize these):\n{criteria}\n"
+                else:
+                    job_text += f"\nDefault Matching Rubric (strictly follow):\n{DEFAULT_MATCHING_CRITERIA}\n"
+
+                analysis = analyze_job_cv_match(cv_text, job_text)
+                score = analysis.get('match_score', 0)
+                strengths = analysis.get('strengths', [])
+                weaknesses = analysis.get('weaknesses', [])
+                recommendations = analysis.get('recommendations', [])
+
+                match_results.append({
+                    'cv': cv,
+                    'match_score': score,
+                    'pass': score >= pass_threshold,
+                    'strengths': strengths,
+                    'weaknesses': weaknesses,
+                    'recommendations': recommendations
+                })
+
+            # Sort results by score desc
+            match_results.sort(key=lambda r: r['match_score'], reverse=True)
+
+    return render_template(
+        'matching.html',
+        cvs=cvs,
+        jobs=jobs,
+        selected_job=selected_job,
+        selected_cv_ids=selected_cv_ids,
+        match_results=match_results,
+        pass_threshold=pass_threshold,
+        criteria=criteria
+    )
 
 @app.route('/api/match', methods=['POST'])
 @login_required
