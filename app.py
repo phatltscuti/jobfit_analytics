@@ -8,7 +8,12 @@ from werkzeug.utils import secure_filename
 import os
 import json
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
+import time
+import base64
 import PyPDF2
+from pdf2image import convert_from_path
+from PIL import Image
 import openai
 import requests
 from dotenv import load_dotenv
@@ -114,21 +119,125 @@ def inject_csrf_token():
     return dict(csrf_token=generate_csrf)
 
 # Utility functions
+def ocr_image_with_openai(image: Image.Image) -> str:
+    """Use OpenAI Responses API to OCR a single image and return extracted text."""
+    try:
+        # Convert image to PNG bytes
+        print("OCRing image with OpenAI")
+        buffer = BytesIO()
+        image.save(buffer, format='PNG')
+        buffer.seek(0)
+        b64 = base64.b64encode(buffer.read()).decode('utf-8')
+
+        data_uri = f"data:image/png;base64,{b64}"
+        payload = {
+            "model": os.environ.get("OCR_MODEL", "gpt-4o"),
+            "input": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": "Extract all textual content from this resume image. Return plain text only."},
+                        {"type": "input_image", "image_url": data_uri}
+                    ]
+                }
+            ]
+        }
+        headers = {
+            "Authorization": f"Bearer {openai.api_key}",
+            "Content-Type": "application/json"
+        }
+        resp = requests.post("https://api.openai.com/v1/responses", headers=headers, data=json.dumps(payload), timeout=90)
+        if resp.status_code >= 400:
+            try:
+                print(f"OpenAI OCR error body: {resp.text[:500]}")
+            except Exception:
+                pass
+        resp.raise_for_status()
+        try:
+            data = resp.json()
+        except Exception:
+            print("OpenAI OCR parse error: non-JSON response body")
+            print(resp.text[:500] if resp and hasattr(resp, 'text') else '')
+            return ""
+        # Parse Responses API output: find first text item
+        output = data.get("output", [])
+        if output:
+            content_items = output[0].get("content") or []
+            for item in content_items:
+                if item.get("type") in ("output_text", "input_text"):
+                    txt = item.get("text", "")
+                    if txt:
+                        return txt
+        
+        return ""
+    except Exception as e:
+        print(f"OpenAI OCR error: {e}")
+        return ""
+
 def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF file"""
+    """Extract text from PDF using OCR with fallback to PyPDF2."""
+    # 1) Try OCR pipeline: pdf -> images -> OCR each -> merge
+    try:
+        poppler_path = os.environ.get('POPPLER_PATH')
+        if poppler_path:
+            images = convert_from_path(pdf_path, dpi=200, poppler_path=poppler_path)
+        else:
+            images = convert_from_path(pdf_path, dpi=200)
+        ocr_texts = []
+        for idx, img in enumerate(images):
+            # Retry OCR a few times for reliability
+            text_page = ""
+            for attempt in range(3):
+                text_page = ocr_image_with_openai(img)
+                if text_page:
+                    break
+                time.sleep(0.5)
+            if text_page:
+                ocr_texts.append(text_page)
+        if ocr_texts:
+            return "\n".join(ocr_texts)
+    except Exception as e:
+        print(f"OCR pipeline failed, fallback to PyPDF2: {e}")
+
+    # 2) Fallback: PyPDF2 text extraction
     try:
         with open(pdf_path, 'rb') as file:
             pdf_reader = PyPDF2.PdfReader(file)
             text = ""
             for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
+                page_text = page.extract_text() or ""
+                text += page_text + "\n"
             return text
     except Exception as e:
         print(f"Error extracting text from PDF: {e}")
         return ""
 
+def _safe_parse_json(text: str):
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    s = (text or "").strip()
+    if s.startswith("```"):
+        lines = s.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        s = "\n".join(lines)
+    start = s.find('{')
+    end = s.rfind('}')
+    if start != -1 and end > start:
+        candidate = s[start:end+1]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            return None
+    return None
+
 def analyze_cv_with_openai(text):
     """Analyze CV text using OpenAI API"""
+    # print("Analyzing CV with OpenAI API", text)
     try:
         prompt = f"""
         Analyze this CV text and extract the following information in JSON format.
@@ -156,7 +265,7 @@ def analyze_cv_with_openai(text):
         )
         
         result = response.choices[0].message.content
-        data = json.loads(result)
+        data = _safe_parse_json(result) or {}
         
         # Ensure all values are strings
         processed_data = {}
