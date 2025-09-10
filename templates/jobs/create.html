@@ -49,10 +49,17 @@
                     </div>
                     
                     <div>
-                        <label for="salary" class="block text-sm font-medium text-gray-700">Salary</label>
-                        <input type="text" name="salary" id="salary" 
+                        <label for="salary_min" class="block text-sm font-medium text-gray-700">Salary Min</label>
+                        <input type="number" name="salary_min" id="salary_min" step="0.01"
                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
-                               placeholder="e.g., $80,000 - $120,000">
+                               placeholder="e.g., 80000">
+                    </div>
+                    
+                    <div>
+                        <label for="salary_max" class="block text-sm font-medium text-gray-700">Salary Max</label>
+                        <input type="number" name="salary_max" id="salary_max" step="0.01"
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
+                               placeholder="e.g., 120000">
                     </div>
                     
                     <div>
@@ -99,10 +106,80 @@
                 
                 <!-- Benefits -->
                 <div>
-                    <label for="benefits" class="block text-sm font-medium text-gray-700">Benefits</label>
+                    <label for="benefits" class="block text-sm font-medium text-gray-700">Benefits & Perks</label>
                     <textarea name="benefits" id="benefits" rows="3" 
                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none"
                               placeholder="List the benefits and perks offered..."></textarea>
+                </div>
+                
+                <!-- Additional Information -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="hiring_quantity" class="block text-sm font-medium text-gray-700">Number of Positions</label>
+                        <input type="number" name="hiring_quantity" id="hiring_quantity" min="1" value="1"
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                    
+                    <div>
+                        <label for="application_deadline" class="block text-sm font-medium text-gray-700">Application Deadline</label>
+                        <input type="date" name="application_deadline" id="application_deadline"
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="experience_level" class="block text-sm font-medium text-gray-700">Experience Level</label>
+                        <select name="experience_level" id="experience_level" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select level</option>
+                            <option value="Entry">Entry Level (0-2 years)</option>
+                            <option value="Mid">Mid Level (3-5 years)</option>
+                            <option value="Senior">Senior Level (6-10 years)</option>
+                            <option value="Lead">Lead/Principal (10+ years)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="work_mode" class="block text-sm font-medium text-gray-700">Work Mode</label>
+                        <select name="work_mode" id="work_mode" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select mode</option>
+                            <option value="Remote">Remote</option>
+                            <option value="On-site">On-site</option>
+                            <option value="Hybrid">Hybrid</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="industry" class="block text-sm font-medium text-gray-700">Industry</label>
+                        <input type="text" name="industry" id="industry" 
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
+                               placeholder="e.g., Technology, Healthcare, Finance">
+                    </div>
+                    
+                    <div>
+                        <label for="education_required" class="block text-sm font-medium text-gray-700">Education Required</label>
+                        <select name="education_required" id="education_required" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select education</option>
+                            <option value="High School">High School</option>
+                            <option value="Associate">Associate Degree</option>
+                            <option value="Bachelor">Bachelor's Degree</option>
+                            <option value="Master">Master's Degree</option>
+                            <option value="PhD">PhD/Doctorate</option>
+                            <option value="No Requirement">No Education Requirement</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="skills_required" class="block text-sm font-medium text-gray-700">Required Skills</label>
+                    <textarea name="skills_required" id="skills_required" rows="3" 
+                              class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none"
+                              placeholder="List specific skills required (e.g., Python, React, AWS, etc.)"></textarea>
                 </div>
                 
                 <!-- Status -->

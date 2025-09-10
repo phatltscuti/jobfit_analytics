@@ -49,8 +49,14 @@
                     </div>
                     
                     <div>
-                        <label for="salary" class="block text-sm font-medium text-gray-700">Salary</label>
-                        <input type="text" name="salary" id="salary" value="{{ job.salary or '' }}" 
+                        <label for="salary_min" class="block text-sm font-medium text-gray-700">Salary Min</label>
+                        <input type="number" name="salary_min" id="salary_min" step="0.01" value="{{ job.salary_min or '' }}"
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                    
+                    <div>
+                        <label for="salary_max" class="block text-sm font-medium text-gray-700">Salary Max</label>
+                        <input type="number" name="salary_max" id="salary_max" step="0.01" value="{{ job.salary_max or '' }}"
                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
                     </div>
                     
@@ -96,9 +102,80 @@
                 
                 <!-- Benefits -->
                 <div>
-                    <label for="benefits" class="block text-sm font-medium text-gray-700">Benefits</label>
+                    <label for="benefits" class="block text-sm font-medium text-gray-700">Benefits & Perks</label>
                     <textarea name="benefits" id="benefits" rows="3" 
                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none">{{ job.benefits or '' }}</textarea>
+                </div>
+                
+                <!-- Additional Information -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="hiring_quantity" class="block text-sm font-medium text-gray-700">Number of Positions</label>
+                        <input type="number" name="hiring_quantity" id="hiring_quantity" min="1" value="{{ job.hiring_quantity or 1 }}"
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                    
+                    <div>
+                        <label for="application_deadline" class="block text-sm font-medium text-gray-700">Application Deadline</label>
+                        <input type="date" name="application_deadline" id="application_deadline" 
+                               value="{{ job.application_deadline.strftime('%Y-%m-%d') if job.application_deadline else '' }}"
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="experience_level" class="block text-sm font-medium text-gray-700">Experience Level</label>
+                        <select name="experience_level" id="experience_level" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select level</option>
+                            <option value="Entry" {% if job.experience_level == 'Entry' %}selected{% endif %}>Entry Level (0-2 years)</option>
+                            <option value="Mid" {% if job.experience_level == 'Mid' %}selected{% endif %}>Mid Level (3-5 years)</option>
+                            <option value="Senior" {% if job.experience_level == 'Senior' %}selected{% endif %}>Senior Level (6-10 years)</option>
+                            <option value="Lead" {% if job.experience_level == 'Lead' %}selected{% endif %}>Lead/Principal (10+ years)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="work_mode" class="block text-sm font-medium text-gray-700">Work Mode</label>
+                        <select name="work_mode" id="work_mode" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select mode</option>
+                            <option value="Remote" {% if job.work_mode == 'Remote' %}selected{% endif %}>Remote</option>
+                            <option value="On-site" {% if job.work_mode == 'On-site' %}selected{% endif %}>On-site</option>
+                            <option value="Hybrid" {% if job.work_mode == 'Hybrid' %}selected{% endif %}>Hybrid</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <label for="industry" class="block text-sm font-medium text-gray-700">Industry</label>
+                        <input type="text" name="industry" id="industry" value="{{ job.industry or '' }}"
+                               class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white"
+                               placeholder="e.g., Technology, Healthcare, Finance">
+                    </div>
+                    
+                    <div>
+                        <label for="education_required" class="block text-sm font-medium text-gray-700">Education Required</label>
+                        <select name="education_required" id="education_required" 
+                                class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white">
+                            <option value="">Select education</option>
+                            <option value="High School" {% if job.education_required == 'High School' %}selected{% endif %}>High School</option>
+                            <option value="Associate" {% if job.education_required == 'Associate' %}selected{% endif %}>Associate Degree</option>
+                            <option value="Bachelor" {% if job.education_required == 'Bachelor' %}selected{% endif %}>Bachelor's Degree</option>
+                            <option value="Master" {% if job.education_required == 'Master' %}selected{% endif %}>Master's Degree</option>
+                            <option value="PhD" {% if job.education_required == 'PhD' %}selected{% endif %}>PhD/Doctorate</option>
+                            <option value="No Requirement" {% if job.education_required == 'No Requirement' %}selected{% endif %}>No Education Requirement</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="skills_required" class="block text-sm font-medium text-gray-700">Required Skills</label>
+                    <textarea name="skills_required" id="skills_required" rows="3" 
+                              class="mt-1 block w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 hover:border-gray-300 sm:text-sm bg-white resize-none"
+                              placeholder="List specific skills required (e.g., Python, React, AWS, etc.)">{{ job.skills_required or '' }}</textarea>
                 </div>
                 
                 <!-- Status -->

@@ -67,9 +67,21 @@
             {% if job.benefits %}
             <div class="bg-white shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Benefits</h3>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Benefits & Perks</h3>
                     <div class="prose max-w-none">
                         <p class="text-sm text-gray-700 whitespace-pre-line">{{ job.benefits }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Required Skills -->
+            {% if job.skills_required %}
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Required Skills</h3>
+                    <div class="prose max-w-none">
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ job.skills_required }}</p>
                     </div>
                 </div>
             </div>
@@ -91,10 +103,18 @@
                             <dt class="text-sm font-medium text-gray-500">Location</dt>
                             <dd class="mt-1 text-sm text-gray-900">{{ job.location }}</dd>
                         </div>
-                        {% if job.salary %}
+                        {% if job.salary_min or job.salary_max %}
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Salary</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ job.salary }}</dd>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                {% if job.salary_min and job.salary_max %}
+                                    ${{ "%.0f"|format(job.salary_min) }} - ${{ "%.0f"|format(job.salary_max) }}
+                                {% elif job.salary_min %}
+                                    From ${{ "%.0f"|format(job.salary_min) }}
+                                {% elif job.salary_max %}
+                                    Up to ${{ "%.0f"|format(job.salary_max) }}
+                                {% endif %}
+                            </dd>
                         </div>
                         {% endif %}
                         {% if job.employment_type %}
@@ -103,10 +123,40 @@
                             <dd class="mt-1 text-sm text-gray-900">{{ job.employment_type }}</dd>
                         </div>
                         {% endif %}
+                        {% if job.hiring_quantity %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Number of Positions</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.hiring_quantity }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if job.application_deadline %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Application Deadline</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.application_deadline.strftime('%B %d, %Y') }}</dd>
+                        </div>
+                        {% endif %}
                         {% if job.experience_level %}
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Experience Level</dt>
                             <dd class="mt-1 text-sm text-gray-900">{{ job.experience_level }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if job.work_mode %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Work Mode</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.work_mode }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if job.industry %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Industry</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.industry }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if job.education_required %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Education Required</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ job.education_required }}</dd>
                         </div>
                         {% endif %}
                         <div>

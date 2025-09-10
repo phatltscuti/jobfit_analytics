@@ -22,7 +22,7 @@
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="p-5">
                 <div class="flex items-center">
@@ -70,15 +70,62 @@
                 </div>
             </div>
         </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-calendar text-blue-500 text-2xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">This Month</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ this_month_jobs }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Search and Filter</h3>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label for="searchInput" class="block text-sm font-medium text-gray-700">Search Jobs</label>
+                    <input type="text" id="searchInput" placeholder="Search by title, company, location..." 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="filterType" class="block text-sm font-medium text-gray-700">Employment Type</label>
+                    <select id="filterType" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                        <option value="">All Types</option>
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Contract">Contract</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button id="clearFilters" class="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+            <div class="mt-4">
+                <p class="text-sm text-gray-600" id="resultsCount">{{ jobs.total }} job{{ 's' if jobs.total != 1 else '' }} found</p>
+            </div>
+        </div>
     </div>
 
     <!-- Job List -->
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            {% if jobs %}
+            {% if jobs and jobs.items %}
                 <div class="space-y-4">
-                    {% for job in jobs %}
-                    <div class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    {% for job in jobs.items %}
+                    <div class="job-item border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow" data-employment-type="{{ job.employment_type or '' }}">
                         <div class="flex items-start justify-between">
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center space-x-3">
@@ -95,8 +142,8 @@
                                 </div>
                                 
                                 <div class="mt-2">
-                                    <p class="text-sm text-gray-600">{{ job.company }}</p>
-                                    <p class="text-sm text-gray-500">{{ job.location }}</p>
+                                    <p class="text-sm text-gray-600 company">{{ job.company }}</p>
+                                    <p class="text-sm text-gray-500 location">{{ job.location }}</p>
                                 </div>
                                 
                                 {% if job.description %}
@@ -105,10 +152,16 @@
                                 
                                 <!-- Job Details -->
                                 <div class="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
-                                    {% if job.salary %}
+                                    {% if job.salary_min or job.salary_max %}
                                         <span class="flex items-center">
                                             <i class="fas fa-dollar-sign mr-1"></i>
-                                            {{ job.salary }}
+                                            {% if job.salary_min and job.salary_max %}
+                                                ${{ "%.0f"|format(job.salary_min) }} - ${{ "%.0f"|format(job.salary_max) }}
+                                            {% elif job.salary_min %}
+                                                From ${{ "%.0f"|format(job.salary_min) }}
+                                            {% elif job.salary_max %}
+                                                Up to ${{ "%.0f"|format(job.salary_max) }}
+                                            {% endif %}
                                         </span>
                                     {% endif %}
                                     {% if job.employment_type %}
@@ -121,6 +174,24 @@
                                         <span class="flex items-center">
                                             <i class="fas fa-chart-line mr-1"></i>
                                             {{ job.experience_level }}
+                                        </span>
+                                    {% endif %}
+                                    {% if job.hiring_quantity and job.hiring_quantity > 1 %}
+                                        <span class="flex items-center">
+                                            <i class="fas fa-users mr-1"></i>
+                                            {{ job.hiring_quantity }} positions
+                                        </span>
+                                    {% endif %}
+                                    {% if job.application_deadline %}
+                                        <span class="flex items-center">
+                                            <i class="fas fa-calendar-alt mr-1"></i>
+                                            Deadline: {{ job.application_deadline.strftime('%b %d, %Y') }}
+                                        </span>
+                                    {% endif %}
+                                    {% if job.work_mode %}
+                                        <span class="flex items-center">
+                                            <i class="fas fa-laptop mr-1"></i>
+                                            {{ job.work_mode }}
                                         </span>
                                     {% endif %}
                                 </div>
@@ -156,17 +227,17 @@
                 </div>
 
                 <!-- Pagination -->
-                {% if pagination and pagination.pages > 1 %}
+                {% if jobs and jobs.pages > 1 %}
                 <div class="mt-6 flex items-center justify-between">
                     <div class="flex-1 flex justify-between sm:hidden">
-                        {% if pagination.has_prev %}
-                            <a href="{{ url_for('jobs_index', page=pagination.prev_num) }}" 
+                        {% if jobs.has_prev %}
+                            <a href="{{ url_for('jobs_index', page=jobs.prev_num) }}" 
                                class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                 Previous
                             </a>
                         {% endif %}
-                        {% if pagination.has_next %}
-                            <a href="{{ url_for('jobs_index', page=pagination.next_num) }}" 
+                        {% if jobs.has_next %}
+                            <a href="{{ url_for('jobs_index', page=jobs.next_num) }}" 
                                class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                 Next
                             </a>
@@ -175,23 +246,23 @@
                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                         <div>
                             <p class="text-sm text-gray-700">
-                                Showing <span class="font-medium">{{ pagination.page * pagination.per_page - pagination.per_page + 1 }}</span>
-                                to <span class="font-medium">{{ pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total }}</span>
-                                of <span class="font-medium">{{ pagination.total }}</span> results
+                                Showing <span class="font-medium">{{ jobs.page * jobs.per_page - jobs.per_page + 1 }}</span>
+                                to <span class="font-medium">{{ jobs.page * jobs.per_page if jobs.page * jobs.per_page < jobs.total else jobs.total }}</span>
+                                of <span class="font-medium">{{ jobs.total }}</span> results
                             </p>
                         </div>
                         <div>
                             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                {% if pagination.has_prev %}
-                                    <a href="{{ url_for('jobs_index', page=pagination.prev_num) }}" 
+                                {% if jobs.has_prev %}
+                                    <a href="{{ url_for('jobs_index', page=jobs.prev_num) }}" 
                                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                                         <i class="fas fa-chevron-left"></i>
                                     </a>
                                 {% endif %}
                                 
-                                {% for page_num in pagination.iter_pages() %}
+                                {% for page_num in jobs.iter_pages() %}
                                     {% if page_num %}
-                                        {% if page_num != pagination.page %}
+                                        {% if page_num != jobs.page %}
                                             <a href="{{ url_for('jobs_index', page=page_num) }}" 
                                                class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                                                 {{ page_num }}
@@ -208,8 +279,8 @@
                                     {% endif %}
                                 {% endfor %}
                                 
-                                {% if pagination.has_next %}
-                                    <a href="{{ url_for('jobs_index', page=pagination.next_num) }}" 
+                                {% if jobs.has_next %}
+                                    <a href="{{ url_for('jobs_index', page=jobs.next_num) }}" 
                                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                                         <i class="fas fa-chevron-right"></i>
                                     </a>
@@ -233,4 +304,65 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const filterType = document.getElementById('filterType');
+    const clearFilters = document.getElementById('clearFilters');
+    const resultsCount = document.getElementById('resultsCount');
+    const jobItems = document.querySelectorAll('.job-item');
+    
+    function filterJobs() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedType = filterType.value;
+        let visibleCount = 0;
+        
+        jobItems.forEach(job => {
+            const title = job.querySelector('h3').textContent.toLowerCase();
+            const company = job.querySelector('.company').textContent.toLowerCase();
+            const location = job.querySelector('.location').textContent.toLowerCase();
+            const description = job.querySelector('p.text-gray-700') ? job.querySelector('p.text-gray-700').textContent.toLowerCase() : '';
+            
+            // Get employment type from the job (you might need to add this data attribute)
+            const employmentType = job.getAttribute('data-employment-type') || '';
+            
+            const matchesSearch = searchTerm === '' || 
+                title.includes(searchTerm) || 
+                company.includes(searchTerm) || 
+                location.includes(searchTerm) ||
+                description.includes(searchTerm);
+            
+            const matchesType = selectedType === '' || employmentType === selectedType;
+            
+            if (matchesSearch && matchesType) {
+                job.style.display = 'block';
+                visibleCount++;
+            } else {
+                job.style.display = 'none';
+            }
+        });
+        
+        // Update results count
+        resultsCount.textContent = `${visibleCount} job${visibleCount !== 1 ? 's' : ''} found`;
+    }
+    
+    // Add event listeners
+    searchInput.addEventListener('input', filterJobs);
+    filterType.addEventListener('change', filterJobs);
+    clearFilters.addEventListener('click', function() {
+        searchInput.value = '';
+        filterType.value = '';
+        filterJobs();
+    });
+    
+    // Add data attributes to job items for employment type filtering
+    jobItems.forEach(job => {
+        const employmentTypeElement = job.querySelector('[data-employment-type]');
+        if (employmentTypeElement) {
+            job.setAttribute('data-employment-type', employmentTypeElement.textContent.trim());
+        }
+    });
+});
+</script>
 {% endblock %}
