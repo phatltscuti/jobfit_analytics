@@ -8,10 +8,17 @@ from werkzeug.utils import secure_filename
 import os
 import json
 from datetime import datetime, timedelta, timezone
+import hashlib
+from io import BytesIO
+import time
+import base64
 import PyPDF2
+from pdf2image import convert_from_path
+from PIL import Image
 import openai
 import requests
 from dotenv import load_dotenv
+import logging
 from langdetect import detect, DetectorFactory
 
 # Make language detection deterministic
@@ -37,6 +44,29 @@ login_manager.login_view = 'login'
 
 # OpenAI configuration
 openai.api_key = os.environ.get('OPENAI_API_KEY')
+
+# Logging configuration
+os.makedirs('logs', exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler('logs/app.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Matching debug logger
+matching_logger = logging.getLogger('matching_debug')
+matching_logger.setLevel(logging.INFO)
+matching_handler = logging.FileHandler('matching_debug.log', encoding='utf-8')
+matching_handler.setFormatter(logging.Formatter('%(asctime)s [MATCHING] %(message)s'))
+matching_logger.addHandler(matching_handler)
+
+# Matching cache (in-memory cache for matching results)
+matching_cache = {}
+CACHE_EXPIRY_HOURS = 24
 
 # Default matching criteria used when user does not provide custom criteria
 DEFAULT_MATCHING_CRITERIA = (
@@ -203,18 +233,216 @@ def inject_csrf_token():
     return dict(csrf_token=generate_csrf)
 
 # Utility functions
+def ocr_image_with_openai(image: Image.Image) -> str:
+    """Use OpenAI Responses API to OCR a single image and return extracted text."""
+    try:
+        # Convert image to PNG bytes
+        print("OCRing image with OpenAI")
+        buffer = BytesIO()
+        image.save(buffer, format='PNG')
+        buffer.seek(0)
+        b64 = base64.b64encode(buffer.read()).decode('utf-8')
+
+        data_uri = f"data:image/png;base64,{b64}"
+        payload = {
+            "model": os.environ.get("OCR_MODEL", "gpt-4o"),
+            "input": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": "Extract all textual content from this resume image. Return plain text only."},
+                        {"type": "input_image", "image_url": data_uri}
+                    ]
+                }
+            ]
+        }
+        headers = {
+            "Authorization": f"Bearer {openai.api_key}",
+            "Content-Type": "application/json"
+        }
+        resp = requests.post("https://api.openai.com/v1/responses", headers=headers, data=json.dumps(payload), timeout=90)
+        if resp.status_code >= 400:
+            try:
+                print(f"OpenAI OCR error body: {resp.text[:500]}")
+            except Exception:
+                pass
+        resp.raise_for_status()
+        try:
+            data = resp.json()
+        except Exception:
+            print("OpenAI OCR parse error: non-JSON response body")
+            print(resp.text[:500] if resp and hasattr(resp, 'text') else '')
+            return ""
+        # Parse Responses API output: find first text item
+        output = data.get("output", [])
+        if output:
+            content_items = output[0].get("content") or []
+            for item in content_items:
+                if item.get("type") in ("output_text", "input_text"):
+                    txt = item.get("text", "")
+                    if txt:
+                        return txt
+        
+        return ""
+    except Exception as e:
+        print(f"OpenAI OCR error: {e}")
+        return ""
+
 def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF file"""
+    """Extract text from PDF using OCR with fallback to PyPDF2."""
+    # 1) Try OCR pipeline: pdf -> images -> OCR each -> merge
+    try:
+        poppler_path = os.environ.get('POPPLER_PATH')
+        if poppler_path:
+            images = convert_from_path(pdf_path, dpi=200, poppler_path=poppler_path)
+        else:
+            images = convert_from_path(pdf_path, dpi=200)
+        ocr_texts = []
+        for idx, img in enumerate(images):
+            # Retry OCR a few times for reliability
+            text_page = ""
+            for attempt in range(3):
+                text_page = ocr_image_with_openai(img)
+                if text_page:
+                    break
+                time.sleep(0.5)
+            if text_page:
+                ocr_texts.append(text_page)
+        if ocr_texts:
+            return "\n".join(ocr_texts)
+    except Exception as e:
+        print(f"OCR pipeline failed, fallback to PyPDF2: {e}")
+
+    # 2) Fallback: PyPDF2 text extraction
     try:
         with open(pdf_path, 'rb') as file:
             pdf_reader = PyPDF2.PdfReader(file)
             text = ""
             for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
+                page_text = page.extract_text() or ""
+                text += page_text + "\n"
             return text
     except Exception as e:
         print(f"Error extracting text from PDF: {e}")
         return ""
+
+def _safe_parse_json(text: str):
+    if not text or not text.strip():
+        matching_logger.info("JSON Parse: Empty text provided")
+        return None
+        
+    matching_logger.info(f"JSON Parse: Attempting to parse from text: {text[:200]}...")
+    logger.info(f"Attempting to parse JSON from text: {text[:200]}...")
+    
+    try:
+        result = json.loads(text)
+        matching_logger.info(f"JSON Parse: Direct parse successful: {result}")
+        return result
+    except Exception as e:
+        matching_logger.warning(f"JSON Parse: Direct parse failed: {e}")
+        logger.warning(f"Direct JSON parse failed: {e}")
+    
+    s = (text or "").strip()
+    
+    # Remove markdown code blocks
+    if s.startswith("```"):
+        matching_logger.info("JSON Parse: Removing markdown code blocks")
+        lines = s.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        s = "\n".join(lines)
+    
+    # Find JSON object boundaries
+    start = s.find('{')
+    end = s.rfind('}')
+    if start != -1 and end > start:
+        candidate = s[start:end+1]
+        matching_logger.info(f"JSON Parse: Extracted candidate: {candidate}")
+        logger.info(f"Extracted candidate JSON: {candidate[:200]}...")
+        try:
+            result = json.loads(candidate)
+            matching_logger.info(f"JSON Parse: Successfully parsed: {result}")
+            logger.info(f"Successfully parsed JSON: {result}")
+            return result
+        except Exception as e:
+            matching_logger.error(f"JSON Parse: Failed to parse candidate: {e}")
+            logger.error(f"JSON parse failed for candidate: {e}")
+            
+            # Try to fix truncated JSON by adding missing closing braces
+            try:
+                fixed_candidate = _fix_truncated_json(candidate)
+                if fixed_candidate:
+                    matching_logger.info(f"JSON Parse: Trying fixed candidate: {fixed_candidate}")
+                    result = json.loads(fixed_candidate)
+                    matching_logger.info(f"JSON Parse: Successfully parsed fixed JSON: {result}")
+                    return result
+            except Exception as fix_e:
+                matching_logger.error(f"JSON Parse: Failed to fix truncated JSON: {fix_e}")
+            
+            return None
+    
+    matching_logger.error("JSON Parse: No valid JSON found in text")
+    logger.error("No valid JSON found in text")
+    return None
+
+def _fix_truncated_json(json_str: str):
+    """Try to fix truncated JSON by adding missing closing braces"""
+    try:
+        # Count opening and closing braces
+        open_braces = json_str.count('{')
+        close_braces = json_str.count('}')
+        open_brackets = json_str.count('[')
+        close_brackets = json_str.count(']')
+        
+        # Add missing closing braces
+        missing_braces = open_braces - close_braces
+        missing_brackets = open_brackets - close_brackets
+        
+        if missing_braces > 0 or missing_brackets > 0:
+            fixed = json_str
+            # Add missing brackets first
+            for _ in range(missing_brackets):
+                fixed += ']'
+            # Add missing braces
+            for _ in range(missing_braces):
+                fixed += '}'
+            
+            matching_logger.info(f"JSON Parse: Fixed truncated JSON by adding {missing_brackets} ] and {missing_braces} }}")
+            return fixed
+            
+    except Exception as e:
+        matching_logger.error(f"JSON Parse: Error fixing truncated JSON: {e}")
+    
+    return None
+
+def _get_cache_key(cv_id: int, job_id: int, criteria: str = ""):
+    """Generate cache key for matching result"""
+    key_data = f"{cv_id}_{job_id}_{criteria}"
+    return hashlib.md5(key_data.encode()).hexdigest()
+
+def _get_cached_result(cache_key: str):
+    """Get cached matching result if not expired"""
+    if cache_key in matching_cache:
+        cached_data = matching_cache[cache_key]
+        if datetime.now() < cached_data['expires_at']:
+            matching_logger.info(f"Cache hit for key: {cache_key}")
+            return cached_data['result']
+        else:
+            # Remove expired cache
+            del matching_cache[cache_key]
+            matching_logger.info(f"Cache expired for key: {cache_key}")
+    return None
+
+def _cache_result(cache_key: str, result: dict):
+    """Cache matching result"""
+    expires_at = datetime.now() + timedelta(hours=CACHE_EXPIRY_HOURS)
+    matching_cache[cache_key] = {
+        'result': result,
+        'expires_at': expires_at
+    }
+    matching_logger.info(f"Cached result for key: {cache_key}, expires at: {expires_at}")
 
 def analyze_cv_with_openai(text):
     """Analyze CV text using OpenAI API and extract full 13-field criteria."""
@@ -877,36 +1105,63 @@ def matching():
             for cv_id in selected_cv_ids:
                 cv = CV.query.get_or_404(cv_id)
 
-                cv_text = f"""
-                Name: {cv.name}
-                Email: {cv.email}
-                Phone: {cv.phone}
-                Address: {cv.address}
-                Education: {cv.education}
-                Experience: {cv.experience}
-                Skills: {cv.skills}
-                """
-
-                job_text = f"""
-                Title: {selected_job.title}
-                Company: {selected_job.company}
-                Description: {selected_job.description}
-                Requirements: {selected_job.requirements}
-                Location: {selected_job.location}
-                Employment Type: {selected_job.employment_type}
-                Salary Min: {selected_job.salary_min}
-                Salary Max: {selected_job.salary_max}
-                """
-                if criteria:
-                    job_text += f"\nCustom Matching Criteria (must prioritize these):\n{criteria}\n"
+                # Check cache first
+                cache_key = _get_cache_key(cv.id, job_id, criteria or "")
+                cached_result = _get_cached_result(cache_key)
+                
+                if cached_result:
+                    matching_logger.info(f"=== USING CACHED RESULT FOR CV: {cv.name} ===")
+                    analysis = cached_result
                 else:
-                    job_text += f"\nDefault Matching Rubric (strictly follow):\n{DEFAULT_MATCHING_CRITERIA}\n"
+                    cv_text = f"""
+                    Name: {cv.name}
+                    Email: {cv.email}
+                    Phone: {cv.phone}
+                    Address: {cv.address}
+                    Education: {cv.education}
+                    Experience: {cv.experience}
+                    Skills: {cv.skills}
+                    """
 
-                analysis = analyze_job_cv_match(cv_text, job_text)
+                    job_text = f"""
+                    Title: {selected_job.title}
+                    Company: {selected_job.company}
+                    Description: {selected_job.description}
+                    Requirements: {selected_job.requirements}
+                    Location: {selected_job.location}
+                    Employment Type: {selected_job.employment_type}
+                    Salary Min: {selected_job.salary_min}
+                    Salary Max: {selected_job.salary_max}
+                    """
+                    if criteria:
+                        job_text += f"\nCustom Matching Criteria (must prioritize these):\n{criteria}\n"
+                    else:
+                        job_text += f"\nDefault Matching Rubric (strictly follow):\n{DEFAULT_MATCHING_CRITERIA}\n"
+
+                    matching_logger.info(f"=== STARTING MATCHING FOR CV: {cv.name} ===")
+                    matching_logger.info(f"CV Text: {cv_text[:200]}...")
+                    matching_logger.info(f"Job Text: {job_text[:200]}...")
+                    
+                    analysis = analyze_job_cv_match(cv_text, job_text)
+                    matching_logger.info(f"Raw Analysis Result: {analysis}")
+                    
+                    # Cache the result
+                    _cache_result(cache_key, analysis)
+                
                 score = analysis.get('match_score', 0)
                 strengths = analysis.get('strengths', [])
                 weaknesses = analysis.get('weaknesses', [])
                 recommendations = analysis.get('recommendations', [])
+                analysis_text = analysis.get('analysis', '')
+                criteria_breakdown = analysis.get('criteria_breakdown', [])
+                
+                matching_logger.info(f"Processed Data - Score: {score}")
+                matching_logger.info(f"Strengths ({len(strengths)}): {strengths}")
+                matching_logger.info(f"Weaknesses ({len(weaknesses)}): {weaknesses}")
+                matching_logger.info(f"Recommendations ({len(recommendations)}): {recommendations}")
+                matching_logger.info(f"Analysis Text: {analysis_text[:100]}...")
+                matching_logger.info(f"Criteria Breakdown ({len(criteria_breakdown)}): {criteria_breakdown}")
+                matching_logger.info(f"=== END MATCHING FOR CV: {cv.name} ===\n")
 
                 match_results.append({
                     'cv': cv,
@@ -914,11 +1169,23 @@ def matching():
                     'pass': score >= pass_threshold,
                     'strengths': strengths,
                     'weaknesses': weaknesses,
-                    'recommendations': recommendations
+                    'recommendations': recommendations,
+                    'analysis': analysis_text,
+                    'criteria_breakdown': criteria_breakdown
                 })
 
             # Sort results by score desc
             match_results.sort(key=lambda r: r['match_score'], reverse=True)
+            
+            # Debug logging
+            matching_logger.info(f"=== MATCHING SESSION COMPLETED ===")
+            matching_logger.info(f"Total Results: {len(match_results)}")
+            for i, result in enumerate(match_results):
+                matching_logger.info(f"Result {i+1}: CV {result['cv'].name}, Score: {result['match_score']}, Pass: {result['pass']}")
+            
+            logger.info(f"Matching completed: {len(match_results)} results")
+            for i, result in enumerate(match_results):
+                logger.info(f"Result {i+1}: CV {result['cv'].name}, Score: {result['match_score']}")
 
     return render_template(
         'matching.html',
@@ -981,11 +1248,92 @@ def api_match():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def analyze_job_cv_match(cv_text, job_text):
-    """Analyze job and CV match using OpenAI"""
+@app.route('/api/match-batch', methods=['POST'])
+@login_required
+def api_match_batch():
+    """Batch matching: returns results after ALL analyses complete."""
     try:
-        # prefer Vietnamese output for strengths/weaknesses/recommendations
-        prompt = f"""
+        data = request.get_json() or {}
+        job_id = data.get('job_id')
+        cv_ids = data.get('cv_ids') or []
+        pass_threshold = int(data.get('pass_threshold') or 70)
+        criteria = (data.get('criteria') or '').strip()
+
+        if not job_id:
+            return jsonify({'success': False, 'error': 'job_id required'}), 400
+
+        # Scope CVs by user role if "all"
+        if len(cv_ids) == 0:
+            if current_user.is_admin:
+                cv_list = CV.query.order_by(CV.created_at.desc()).all()
+            else:
+                cv_list = CV.query.filter(
+                    (CV.user_id == current_user.id) | (CV.user_id.is_(None))
+                ).order_by(CV.created_at.desc()).all()
+        else:
+            cv_list = CV.query.filter(CV.id.in_(cv_ids)).all()
+
+        job = Job.query.get_or_404(job_id)
+
+        results = []
+        for cv in cv_list:
+            cv_text = f"""
+            Name: {cv.name}
+            Email: {cv.email}
+            Phone: {cv.phone}
+            Address: {cv.address}
+            Education: {cv.education}
+            Experience: {cv.experience}
+            Skills: {cv.skills}
+            """
+            job_text = f"""
+            Title: {job.title}
+            Company: {job.company}
+            Description: {job.description}
+            Requirements: {job.requirements}
+            Location: {job.location}
+            Employment Type: {job.employment_type}
+            Salary Min: {job.salary_min}
+            Salary Max: {job.salary_max}
+            """
+            if criteria:
+                job_text += f"\nCustom Matching Criteria (must prioritize these):\n{criteria}\n"
+            else:
+                job_text += f"\nDefault Matching Rubric (strictly follow):\n{DEFAULT_MATCHING_CRITERIA}\n"
+
+            analysis = analyze_job_cv_match(cv_text, job_text)
+            score = int(analysis.get('match_score', 0))
+            results.append({
+                'cv': {
+                    'id': cv.id,
+                    'name': cv.name,
+                    'email': cv.email or ''
+                },
+                'match_score': score,
+                'pass': score >= pass_threshold,
+                'analysis': analysis.get('analysis', ''),
+                'strengths': analysis.get('strengths', []) or [],
+                'weaknesses': analysis.get('weaknesses', []) or [],
+                'recommendations': analysis.get('recommendations', []) or [],
+                'criteria_breakdown': analysis.get('criteria_breakdown', []) or []
+            })
+
+        # sort by score desc
+        results.sort(key=lambda r: r.get('match_score', 0), reverse=True)
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        logger.exception("Batch match error")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def analyze_job_cv_match(cv_text, job_text):
+    """Analyze job and CV match using OpenAI with retry logic"""
+    max_retries = 3
+    retry_delay = 1  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            # prefer Vietnamese output for strengths/weaknesses/recommendations and 15-criteria breakdown
+            prompt = f"""
         Phân tích mức độ phù hợp giữa CV và JD. Trả về đúng JSON, nội dung TIẾNG VIỆT:
 
         CV:
@@ -994,50 +1342,111 @@ def analyze_job_cv_match(cv_text, job_text):
         JD:
         {job_text}
 
-        Đầu ra JSON đúng cấu trúc:
+        Đầu ra JSON đúng cấu trúc (phải đủ các khóa dưới đây). KHÔNG được có dấu phẩy thừa, KHÔNG có comment, KHÔNG có text ngoài JSON:
         {{
             "match_score": 85,
             "analysis": "tóm tắt tổng quan bằng tiếng Việt",
             "strengths": ["điểm mạnh 1", "điểm mạnh 2"],
             "weaknesses": ["khoảng trống 1", "khoảng trống 2"],
-            "recommendations": ["khuyến nghị 1", "khuyến nghị 2"]
+            "recommendations": ["khuyến nghị 1", "khuyến nghị 2"],
+            "criteria_breakdown": [
+                {{
+                  "criterion": "Seniority / Level",
+                  "score": 100,
+                  "weight": 3,
+                  "weighted_score": 300,
+                  "explain": "giải thích ngắn gọn bằng tiếng Việt"
+                }},
+                {{
+                  "criterion": "Core Skills",
+                  "score": 90,
+                  "weight": 3,
+                  "weighted_score": 270,
+                  "explain": "..."
+                }}
+            ]
         }}
 
         match_score trong khoảng 0-100.
         """
 
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Chỉ được trả về JSON hợp lệ, không thêm mô tả ngoài JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000,
-            temperature=0.3
-        )
-        
-        result = response.choices[0].message.content
-        data = json.loads(result)
-        
-        # Ensure proper data types
-        processed_data = {
-            'match_score': int(data.get('match_score', 0)),
-            'analysis': str(data.get('analysis', '')),
-            'strengths': data.get('strengths', []) if isinstance(data.get('strengths'), list) else [],
-            'weaknesses': data.get('weaknesses', []) if isinstance(data.get('weaknesses'), list) else [],
-            'recommendations': data.get('recommendations', []) if isinstance(data.get('recommendations'), list) else []
-        }
-        
-        return processed_data
-    except Exception as e:
-        print(f"OpenAI API error: {e}")
-        return {
-            'match_score': 0,
-            'analysis': 'Unable to analyze due to API error',
-            'strengths': [],
-            'weaknesses': ['API Error'],
-            'recommendations': ['Please check OpenAI API configuration']
-        }
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Chỉ được trả về JSON hợp lệ, không thêm mô tả ngoài JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1500,
+                temperature=0.1
+            )
+            # Log raw response (truncated)
+            result = response.choices[0].message.content or ""
+            matching_logger.info(f"OpenAI Raw Response: {result}")
+            logger.info("Matching raw JSON (trunc): %s", result[:1000])
+            # Robust JSON extraction
+            data = _safe_parse_json(result) or {}
+            matching_logger.info(f"Parsed JSON Data: {data}")
+            logger.info(f"Parsed JSON data: {data}")
+            
+            # Fallback if no data parsed
+            if not data:
+                logger.warning("No JSON data parsed, using fallback")
+                data = {
+                    'match_score': 0,
+                    'analysis': 'Unable to analyze due to parsing error',
+                    'strengths': ['Analysis failed'],
+                    'weaknesses': ['Unable to process'],
+                    'recommendations': ['Please try again'],
+                    'criteria_breakdown': []
+                }
+            
+            # Ensure proper data types
+            processed_data = {
+                'match_score': int(data.get('match_score', 0)),
+                'analysis': str(data.get('analysis', '')),
+                'strengths': data.get('strengths', []) if isinstance(data.get('strengths'), list) else [],
+                'weaknesses': data.get('weaknesses', []) if isinstance(data.get('weaknesses'), list) else [],
+                'recommendations': data.get('recommendations', []) if isinstance(data.get('recommendations'), list) else [],
+                'criteria_breakdown': data.get('criteria_breakdown', []) if isinstance(data.get('criteria_breakdown'), list) else []
+            }
+            
+            logger.info(f"Processed data: {processed_data}")
+            return processed_data
+                
+        except Exception as e:
+            logger.warning(f"OpenAI API attempt {attempt + 1} failed: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                continue
+            else:
+                logger.error(f"All {max_retries} attempts failed. Last error: {e}")
+                return {
+                    'match_score': 0,
+                    'analysis': 'Unable to analyze due to API error after multiple attempts',
+                    'strengths': [],
+                    'weaknesses': ['API Error - Please try again later'],
+                    'recommendations': ['Please check OpenAI API configuration and try again']
+                }
+
+@app.route('/debug/matching-data')
+@login_required
+def debug_matching_data():
+    """Debug endpoint to check matching data"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin only'}), 403
+    
+    # Get recent matching results
+    recent_cvs = CV.query.order_by(CV.created_at.desc()).limit(3).all()
+    recent_jobs = Job.query.filter_by(is_active=True).order_by(Job.created_at.desc()).limit(3).all()
+    
+    debug_data = {
+        'cvs_count': len(recent_cvs),
+        'jobs_count': len(recent_jobs),
+        'recent_cvs': [{'id': cv.id, 'name': cv.name, 'email': cv.email} for cv in recent_cvs],
+        'recent_jobs': [{'id': job.id, 'title': job.title, 'company': job.company} for job in recent_jobs]
+    }
+    
+    return jsonify(debug_data)
 
 @app.route('/api/analyze-cv-preview', methods=['POST'])
 @login_required
@@ -1137,6 +1546,7 @@ def export_data():
         return redirect(url_for('settings'))
 
 @app.route('/clear-flash', methods=['POST'])
+@csrf.exempt
 def clear_flash():
     """Clear flash messages from session"""
     session.pop('_flashes', None)

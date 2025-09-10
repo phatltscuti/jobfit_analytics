@@ -27,7 +27,7 @@
     <!-- Edit Form -->
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            <form method="POST" class="space-y-6">
+            <form method="POST" class="space-y-6" id="cv-edit-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
@@ -143,10 +143,10 @@
 
                 <!-- Submit Buttons -->
                 <div class="flex justify-end space-x-3">
-                    <a href="{{ url_for('cvs_show', cv_id=cv.id) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md">
+                    <a href="{{ url_for('cvs_show', cv_id=cv.id) }}" class="btn-secondary">
                         <i class="fas fa-times mr-2"></i>Cancel
                     </a>
-                    <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                    <button type="submit" class="btn-primary">
                         <i class="fas fa-save mr-2"></i>Update CV
                     </button>
                 </div>

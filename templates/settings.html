@@ -29,6 +29,7 @@
                 <div class="px-4 py-5 sm:p-6">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">OpenAI Configuration</h3>
                     <form method="POST" class="space-y-6">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div>
                             <label for="openai_api_key" class="block text-sm font-medium text-gray-700">OpenAI API Key</label>
                             <input type="password" name="openai_api_key" id="openai_api_key" 
@@ -51,7 +52,7 @@
 
                         <div class="flex justify-end">
                             <button type="submit" name="action" value="update_openai" 
-                                    class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                                    class="btn-primary">
                                 <i class="fas fa-save mr-2"></i>Save OpenAI Settings
                             </button>
                         </div>
@@ -64,6 +65,7 @@
                 <div class="px-4 py-5 sm:p-6">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Application Settings</h3>
                     <form method="POST" class="space-y-6">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div>
                             <label for="app_name" class="block text-sm font-medium text-gray-700">Application Name</label>
                             <input type="text" name="app_name" id="app_name" 
@@ -102,7 +104,7 @@
 
                         <div class="flex justify-end">
                             <button type="submit" name="action" value="update_app" 
-                                    class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-md hover-lift">
+                                    class="btn-primary">
                                 <i class="fas fa-save mr-2"></i>Save Application Settings
                             </button>
                         </div>
