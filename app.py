@@ -16,10 +16,13 @@ import PyPDF2
 from pdf2image import convert_from_path
 from PIL import Image
 import openai
+from openai import OpenAI
 import requests
 from dotenv import load_dotenv
 import logging
 from langdetect import detect, DetectorFactory
+import concurrent.futures
+import threading
 
 # Make language detection deterministic
 DetectorFactory.seed = 0
@@ -158,6 +161,7 @@ class CV(db.Model):
     skills = db.Column(db.Text)
     file_path = db.Column(db.String(200))
     avatar = db.Column(db.String(200))
+    raw_text = db.Column(db.Text)  # Store extracted text from PDF
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -234,96 +238,198 @@ def inject_csrf_token():
 
 # Utility functions
 def ocr_image_with_openai(image: Image.Image) -> str:
-    """Use OpenAI Responses API to OCR a single image and return extracted text."""
+    """Use OpenAI Vision API to OCR a single image and return extracted text."""
     try:
-        # Convert image to PNG bytes
-        print("OCRing image with OpenAI")
+        # Optimize image size for faster processing
+        print("OCRing image with OpenAI Vision API")
+        
+        # Resize image if too large (max width 1200px for faster processing)
+        if image.width > 1200:
+            ratio = 1200 / image.width
+            new_height = int(image.height * ratio)
+            image = image.resize((1200, new_height), Image.Resampling.LANCZOS)
+            print(f"Resized image to {image.width}x{image.height} for faster OCR")
+        
+        # Convert to RGB if needed (OpenAI requires RGB)
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Convert image to JPEG bytes (smaller than PNG)
         buffer = BytesIO()
-        image.save(buffer, format='PNG')
+        image.save(buffer, format='JPEG', quality=85, optimize=True)
         buffer.seek(0)
         b64 = base64.b64encode(buffer.read()).decode('utf-8')
 
-        data_uri = f"data:image/png;base64,{b64}"
-        payload = {
-            "model": os.environ.get("OCR_MODEL", "gpt-4o"),
-            "input": [
+        # Use OpenAI Vision API with optimized settings
+        client = OpenAI(api_key=openai.api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # Fastest model for OCR
+            messages=[
                 {
                     "role": "user",
                     "content": [
-                        {"type": "input_text", "text": "Extract all textual content from this resume image. Return plain text only."},
-                        {"type": "input_image", "image_url": data_uri}
+                        {
+                            "type": "text",
+                            "text": "Extract all text from this CV/resume image. Return the text as normal paragraphs with proper spacing. Do not put each word on a separate line. Combine words into sentences and paragraphs naturally."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{b64}"
+                            }
+                        }
                     ]
                 }
-            ]
-        }
-        headers = {
-            "Authorization": f"Bearer {openai.api_key}",
-            "Content-Type": "application/json"
-        }
-        resp = requests.post("https://api.openai.com/v1/responses", headers=headers, data=json.dumps(payload), timeout=90)
-        if resp.status_code >= 400:
-            try:
-                print(f"OpenAI OCR error body: {resp.text[:500]}")
-            except Exception:
-                pass
-        resp.raise_for_status()
-        try:
-            data = resp.json()
-        except Exception:
-            print("OpenAI OCR parse error: non-JSON response body")
-            print(resp.text[:500] if resp and hasattr(resp, 'text') else '')
-            return ""
-        # Parse Responses API output: find first text item
-        output = data.get("output", [])
-        if output:
-            content_items = output[0].get("content") or []
-            for item in content_items:
-                if item.get("type") in ("output_text", "input_text"):
-                    txt = item.get("text", "")
-                    if txt:
-                        return txt
+            ],
+            max_tokens=2000,  # Reduced for faster response
+            temperature=0.1
+        )
         
+        # Extract text from response
+        if response.choices and len(response.choices) > 0:
+            text = response.choices[0].message.content
+            if text and text.strip():
+                # Post-process to fix OCR formatting issues
+                import re
+                # Debug: print raw text before processing
+                print(f"Raw OCR text (first 200 chars): {text[:200]}")
+                
+                # Replace single line breaks with spaces, but keep double line breaks for paragraphs
+                text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
+                # Clean up multiple spaces
+                text = re.sub(r' +', ' ', text)
+                # Clean up spaces around punctuation
+                text = re.sub(r' +([.,;:!?])', r'\1', text)
+                text = re.sub(r'([.,;:!?]) +', r'\1 ', text)
+                
+                # Debug: print processed text
+                print(f"Processed OCR text (first 200 chars): {text[:200]}")
+                print(f"OCR extracted {len(text)} characters")
+                return text.strip()
+        
+        print("No text extracted from OCR")
         return ""
+        
     except Exception as e:
         print(f"OpenAI OCR error: {e}")
         return ""
 
 def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF using OCR with fallback to PyPDF2."""
-    # 1) Try OCR pipeline: pdf -> images -> OCR each -> merge
-    try:
-        poppler_path = os.environ.get('POPPLER_PATH')
-        if poppler_path:
-            images = convert_from_path(pdf_path, dpi=200, poppler_path=poppler_path)
-        else:
-            images = convert_from_path(pdf_path, dpi=200)
-        ocr_texts = []
-        for idx, img in enumerate(images):
-            # Retry OCR a few times for reliability
-            text_page = ""
-            for attempt in range(3):
-                text_page = ocr_image_with_openai(img)
-                if text_page:
-                    break
-                time.sleep(0.5)
-            if text_page:
-                ocr_texts.append(text_page)
-        if ocr_texts:
-            return "\n".join(ocr_texts)
-    except Exception as e:
-        print(f"OCR pipeline failed, fallback to PyPDF2: {e}")
-
-    # 2) Fallback: PyPDF2 text extraction
+    """Extract text from PDF - combine PyPDF2 text with OCR from images for comprehensive extraction."""
+    
+    all_texts = []
+    
+    # 1) First try PyPDF2 to get any extractable text
+    pypdf2_text = ""
     try:
         with open(pdf_path, 'rb') as file:
             pdf_reader = PyPDF2.PdfReader(file)
-            text = ""
             for page in pdf_reader.pages:
                 page_text = page.extract_text() or ""
-                text += page_text + "\n"
-            return text
+                pypdf2_text += page_text + "\n"
+            
+            clean_pypdf2_text = pypdf2_text.strip()
+            if len(clean_pypdf2_text) > 10:  # If we have some text, add it
+                # Post-process PyPDF2 text to fix word-by-word formatting
+                import re
+                # Replace single line breaks with spaces, but keep double line breaks for paragraphs
+                clean_pypdf2_text = re.sub(r'(?<!\n)\n(?!\n)', ' ', clean_pypdf2_text)
+                # Clean up multiple spaces
+                clean_pypdf2_text = re.sub(r' +', ' ', clean_pypdf2_text)
+                # Clean up spaces around punctuation
+                clean_pypdf2_text = re.sub(r' +([.,;:!?])', r'\1', clean_pypdf2_text)
+                clean_pypdf2_text = re.sub(r'([.,;:!?]) +', r'\1 ', clean_pypdf2_text)
+                
+                print(f"PyPDF2 extracted {len(clean_pypdf2_text)} characters")
+                all_texts.append(clean_pypdf2_text)
+            else:
+                print("PyPDF2 extracted minimal text")
     except Exception as e:
-        print(f"Error extracting text from PDF: {e}")
+        print(f"PyPDF2 failed: {e}")
+    
+    # 2) Always try OCR to get text from images (even if PyPDF2 worked)
+    try:
+        poppler_path = os.environ.get('POPPLER_PATH', 'C:\\poppler\\poppler-23.08.0\\Library\\bin')
+        # Use lower DPI for faster processing (150 instead of 200)
+        if poppler_path and os.path.exists(poppler_path):
+            images = convert_from_path(pdf_path, dpi=150, poppler_path=poppler_path)
+        else:
+            images = convert_from_path(pdf_path, dpi=150)
+        
+        print(f"Converting PDF to {len(images)} images for OCR to extract text from images")
+        
+        # Process images in parallel for faster OCR
+        def process_image_ocr(img_data):
+            idx, img = img_data
+            print(f"Processing page {idx + 1}/{len(images)} with OCR...")
+            text_page = ocr_image_with_openai(img)
+            if text_page:
+                print(f"Page {idx + 1} OCR extracted {len(text_page)} characters")
+                return idx, text_page
+            else:
+                print(f"Page {idx + 1} OCR failed, skipping")
+                return idx, None
+        
+        # Use ThreadPoolExecutor for parallel processing
+        ocr_texts = [None] * len(images)  # Pre-allocate list
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit all OCR tasks
+            future_to_index = {
+                executor.submit(process_image_ocr, (idx, img)): idx 
+                for idx, img in enumerate(images)
+            }
+            
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(future_to_index):
+                try:
+                    idx, text = future.result()
+                    if text:
+                        ocr_texts[idx] = text
+                except Exception as e:
+                    print(f"OCR task failed: {e}")
+        
+        # Filter out None results and add OCR text
+        valid_ocr_texts = [text for text in ocr_texts if text is not None]
+        if valid_ocr_texts:
+            ocr_combined = "\n".join(valid_ocr_texts)
+            print(f"OCR extracted {len(ocr_combined)} characters from images")
+            all_texts.append(ocr_combined)
+        else:
+            print("OCR failed to extract any text from images")
+    except Exception as e:
+        print(f"OCR pipeline failed: {e}")
+    
+    # 3) Combine all extracted text and remove duplicates
+    if all_texts:
+        # Prioritize OCR text (usually more accurate for names and formatting)
+        if len(all_texts) > 1:
+            # Put OCR text first, then PyPDF2 text
+            ocr_text = all_texts[-1] if len(all_texts) > 1 else all_texts[0]
+            pypdf2_text = all_texts[0] if len(all_texts) > 1 else ""
+            
+            # Combine with OCR text first
+            combined_text = ocr_text
+            if pypdf2_text and pypdf2_text != ocr_text:
+                combined_text += "\n\n" + pypdf2_text
+        else:
+            combined_text = all_texts[0]
+        
+        # Remove duplicate lines to avoid redundancy
+        lines = combined_text.split('\n')
+        unique_lines = []
+        seen_lines = set()
+        
+        for line in lines:
+            line_clean = line.strip()
+            if line_clean and line_clean not in seen_lines:
+                unique_lines.append(line)
+                seen_lines.add(line_clean)
+        
+        final_text = '\n'.join(unique_lines)
+        print(f"Combined extraction: {len(final_text)} total characters (OCR prioritized)")
+        return final_text
+    else:
+        print("No text extracted from PDF")
         return ""
 
 def _safe_parse_json(text: str):
@@ -493,7 +599,8 @@ def analyze_cv_with_openai(text):
         {text[:3000]}
         """
 
-        response = openai.ChatCompletion.create(
+        client = OpenAI(api_key=openai.api_key)
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You must output ONLY a valid JSON object. Do not translate; preserve original language exactly."},
@@ -714,90 +821,127 @@ def cvs_index():
 @login_required
 def cvs_create():
     if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No file selected', 'error')
+        if 'files' not in request.files:
+            flash('No files selected', 'error')
             return render_template('cvs/create.html')
         
-        file = request.files['file']
-        if file.filename == '':
-            flash('No file selected', 'error')
+        files = request.files.getlist('files')
+        if not files or all(file.filename == '' for file in files):
+            flash('No files selected', 'error')
             return render_template('cvs/create.html')
         
-        if file and file.filename.lower().endswith('.pdf'):
-            filename = secure_filename(file.filename)
-            timestamp = int(datetime.now(timezone.utc).timestamp())
-            filename = f"{timestamp}_{filename}"
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'cvs', filename)
-            file.save(file_path)
-            
-            # Extract text from PDF
-            text = extract_text_from_pdf(file_path)
-            
-            # Analyze with OpenAI
-            ai_data = analyze_cv_with_openai(text)
-
-            # Language detection fallback/merge
+        # Filter only PDF files
+        pdf_files = [file for file in files if file.filename.lower().endswith('.pdf')]
+        
+        if not pdf_files:
+            flash('Please upload PDF files only', 'error')
+            return render_template('cvs/create.html')
+        
+        uploaded_count = 0
+        failed_count = 0
+        errors = []
+        
+        for file in pdf_files:
             try:
-                detected_lang = detect(text) if text and text.strip() else None
-            except Exception:
-                detected_lang = None
-            if detected_lang:
-                if not ai_data.get('languages'):
-                    ai_data['languages'] = detected_lang
-                else:
-                    langs = ai_data['languages']
-                    if detected_lang.lower() not in langs.lower():
-                        ai_data['languages'] = f"{langs}, {detected_lang}"
-            
-            # Fallback if AI analysis fails
-            if not ai_data or not ai_data.get('name'):
-                ai_data = {
-                    'name': 'Unknown',
-                    'email': '',
-                    'phone': '',
-                    'address': '',
-                    'education': '',
-                    'experience': '',
-                    'skills': ''
-                }
-            
-            # Create CV record
-            cv = CV(
-                name=ai_data.get('name', 'Unknown'),
-                email=ai_data.get('email', ''),
-                phone=ai_data.get('phone', ''),
-                address=ai_data.get('address', ''),
-                education=ai_data.get('education', ''),
-                experience=ai_data.get('experience', ''),
-                skills=ai_data.get('skills', ''),
-                file_path=f"cvs/{filename}",
-                user_id=current_user.id,
-                # Try to prefill CV criteria if AI returned similar fields (best-effort)
-                cv_seniority=ai_data.get('seniority'),
-                cv_core_skills=ai_data.get('core_skills'),
-                cv_languages=ai_data.get('languages'),
-                cv_work_model=ai_data.get('work_model'),
-                cv_visa_status=ai_data.get('visa_status'),
-                cv_secondary_skills=ai_data.get('secondary_skills'),
-                cv_years_experience=ai_data.get('years_experience'),
-                cv_recency_years=ai_data.get('recency_years'),
-                cv_domain=ai_data.get('domain'),
-                cv_kpi=ai_data.get('kpi'),
-                cv_stack_versions=ai_data.get('stack_versions'),
-                cv_soft_skills=ai_data.get('soft_skills'),
-                cv_culture_process=ai_data.get('culture_process')
-            )
-            
-            # Use default avatar
-            cv.avatar = "default-avatar.svg"
-            
-            db.session.add(cv)
+                filename = secure_filename(file.filename)
+                timestamp = int(datetime.now(timezone.utc).timestamp())
+                filename = f"{timestamp}_{filename}"
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'cvs', filename)
+                file.save(file_path)
+                
+                # Extract text from PDF
+                text = extract_text_from_pdf(file_path)
+                
+                # Analyze with OpenAI
+                print(f"Analyzing text with OpenAI (first 500 chars): {text[:500]}")
+                ai_data = analyze_cv_with_openai(text)
+                print(f"AI analysis result: {ai_data}")
+
+                # Language detection fallback/merge
+                try:
+                    detected_lang = detect(text) if text and text.strip() else None
+                except Exception:
+                    detected_lang = None
+                if detected_lang:
+                    if not ai_data.get('languages'):
+                        ai_data['languages'] = detected_lang
+                    else:
+                        langs = ai_data['languages']
+                        if detected_lang.lower() not in langs.lower():
+                            ai_data['languages'] = f"{langs}, {detected_lang}"
+                
+                # Fallback if AI analysis fails
+                if not ai_data or not ai_data.get('name'):
+                    ai_data = {
+                        'name': 'Unknown',
+                        'email': '',
+                        'phone': '',
+                        'address': '',
+                        'education': '',
+                        'experience': '',
+                        'skills': ''
+                    }
+                
+                # Create CV record
+                cv = CV(
+                    name=ai_data.get('name', 'Unknown'),
+                    email=ai_data.get('email', ''),
+                    phone=ai_data.get('phone', ''),
+                    address=ai_data.get('address', ''),
+                    education=ai_data.get('education', ''),
+                    experience=ai_data.get('experience', ''),
+                    skills=ai_data.get('skills', ''),
+                    file_path=f"cvs/{filename}",
+                    raw_text=text,  # Store extracted text
+                    user_id=current_user.id,
+                    # Try to prefill CV criteria if AI returned similar fields (best-effort)
+                    cv_seniority=ai_data.get('seniority'),
+                    cv_core_skills=ai_data.get('core_skills'),
+                    cv_languages=ai_data.get('languages'),
+                    cv_work_model=ai_data.get('work_model'),
+                    cv_visa_status=ai_data.get('visa_status'),
+                    cv_secondary_skills=ai_data.get('secondary_skills'),
+                    cv_years_experience=ai_data.get('years_experience'),
+                    cv_recency_years=ai_data.get('recency_years'),
+                    cv_domain=ai_data.get('domain'),
+                    cv_kpi=ai_data.get('kpi'),
+                    cv_stack_versions=ai_data.get('stack_versions'),
+                    cv_soft_skills=ai_data.get('soft_skills'),
+                    cv_culture_process=ai_data.get('culture_process')
+                )
+                
+                # Use default avatar
+                cv.avatar = "default-avatar.svg"
+                
+                db.session.add(cv)
+                uploaded_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error processing file {file.filename}: {str(e)}")
+                failed_count += 1
+                errors.append(f"Failed to process {file.filename}: {str(e)}")
+                continue
+        
+        # Commit all successful uploads
+        if uploaded_count > 0:
             db.session.commit()
-            
-            flash('CV uploaded and analyzed successfully!', 'success')
-            return redirect(url_for('cvs_index'))
+        
+        # Show appropriate flash messages
+        if uploaded_count > 0 and failed_count == 0:
+            if uploaded_count == 1:
+                flash('CV uploaded and analyzed successfully!', 'success')
+            else:
+                flash(f'{uploaded_count} CVs uploaded and analyzed successfully!', 'success')
+        elif uploaded_count > 0 and failed_count > 0:
+            flash(f'{uploaded_count} CVs uploaded successfully, {failed_count} failed', 'warning')
+            for error in errors:
+                flash(error, 'error')
         else:
-            flash('Please upload a PDF file', 'error')
+            flash('Failed to upload any CVs', 'error')
+            for error in errors:
+                flash(error, 'error')
+        
+        return redirect(url_for('cvs_index'))
     
     return render_template('cvs/create.html')
 
@@ -1370,7 +1514,8 @@ def analyze_job_cv_match(cv_text, job_text):
         match_score trong khoảng 0-100.
         """
 
-            response = openai.ChatCompletion.create(
+            client = OpenAI(api_key=openai.api_key)
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "Chỉ được trả về JSON hợp lệ, không thêm mô tả ngoài JSON."},

@@ -15,7 +15,8 @@
             </p>
         </div>
         <div class="mt-4 flex md:mt-0 md:ml-4">
-            <a href="{{ url_for('jobs_index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            <a href="{{ url_for('jobs_index') }}" 
+               class="inline-flex items-center px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95">
                 <i class="fas fa-arrow-left mr-2"></i>Back to Jobs
             </a>
         </div>
@@ -264,14 +265,16 @@
                     </div>
                 </div>
                 <!-- Submit Buttons -->
-                <div class="flex justify-end space-x-3">
-                    <a href="{{ url_for('jobs_index') }}" class="btn-secondary">
+                <div class="pt-6 border-t border-gray-200 flex justify-end space-x-3">
+                    <a href="{{ url_for('jobs_index') }}" 
+                       class="inline-flex items-center px-6 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95">
                         <i class="fas fa-times mr-2"></i>Cancel
                     </a>
-                    <button type="submit" class="btn-primary">
+                    <button type="submit" 
+                            class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95">
                         <i class="fas fa-plus mr-2"></i>Create Job Posting
                     </button>
-                    </div>
+                </div>
                 </form>
         </div>
     </div>

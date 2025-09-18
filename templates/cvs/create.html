@@ -15,7 +15,7 @@
                 Upload New CV
             </h2>
             <p class="mt-1 text-sm text-gray-500">
-                Upload a PDF CV and let AI analyze it for you.
+                Upload one or multiple PDF CVs and let AI analyze them for you.
             </p>
         </div>
         <div class="mt-4 flex md:mt-0 md:ml-4">
@@ -32,7 +32,7 @@
             <!-- File Upload Section -->
             <div class="bg-white shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Upload CV File</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Upload CV Files</h3>
                     <form method="POST" enctype="multipart/form-data" id="cvForm">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <!-- File Upload Area -->
@@ -40,21 +40,29 @@
                             <div class="space-y-1 text-center">
                                 <i class="fas fa-cloud-upload-alt text-gray-400 text-5xl mb-4"></i>
                                 <div class="flex text-sm text-gray-600">
-                                    <label for="file" class="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
-                                        <span>Choose PDF file</span>
-                                        <input id="file" name="file" type="file" accept=".pdf" required class="sr-only">
+                                    <label for="files" class="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                                        <span>Choose PDF files</span>
+                                        <input id="files" name="files" type="file" accept=".pdf" multiple required class="sr-only">
                                     </label>
                                     <p class="pl-1">or drag and drop</p>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-2">PDF files only, up to 10MB</p>
-                                <p class="text-xs text-gray-400 mt-1" id="fileInfo">No file selected</p>
+                                <p class="text-xs text-gray-500 mt-2">PDF files only, up to 10MB each</p>
+                                <p class="text-xs text-gray-400 mt-1" id="fileInfo">No files selected</p>
             </div>
                     </div>
                     
+                        <!-- Selected Files List -->
+                        <div id="selectedFilesList" class="mt-4 hidden">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Selected Files:</h4>
+                            <div id="filesList" class="space-y-2 max-h-32 overflow-y-auto">
+                                <!-- Files will be listed here -->
+                            </div>
+                        </div>
+                        
                         <!-- Submit Button -->
                         <div class="mt-6">
                             <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                                <i class="fas fa-upload mr-2"></i>Upload & Analyze CV
+                                <i class="fas fa-upload mr-2"></i>Upload & Analyze CVs
                         </button>
                     </div>
                 </form>
@@ -70,7 +78,7 @@
                     <div class="ml-3">
                         <h3 class="text-sm font-medium text-blue-800">AI-Powered Analysis</h3>
                         <div class="mt-2 text-sm text-blue-700">
-                            <p>Our AI will automatically extract and analyze:</p>
+                            <p>Our AI will automatically extract and analyze each CV:</p>
                             <ul class="list-disc list-inside mt-1 space-y-1 text-xs">
                                 <li>Personal information</li>
                                 <li>Education background</li>
@@ -78,6 +86,7 @@
                                 <li>Skills and competencies</li>
                                 <li>Professional summary</li>
                             </ul>
+                            <p class="mt-2 text-xs text-blue-600 font-medium">Multiple CVs will be processed in batch</p>
             </div>
             </div>
         </div>
@@ -98,6 +107,7 @@
                                 <li>Include complete contact information</li>
                                 <li>List all relevant work experience</li>
                                 <li>Include education and certifications</li>
+                                <li>Select multiple files at once for batch processing</li>
                 </ul>
                         </div>
                     </div>
@@ -122,6 +132,24 @@
                     <!-- File Preview State -->
                     <div id="filePreview" class="hidden">
                         <div class="border border-gray-200 rounded-lg p-4">
+                            <!-- File Navigation -->
+                            <div id="fileNavigation" class="hidden mb-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <button id="prevFile" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <i class="fas fa-chevron-left"></i> Prev
+                                        </button>
+                                        <span id="fileInfo" class="text-xs text-gray-600">File 1 of 1</span>
+                                        <button id="nextFile" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                            Next <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        <span id="currentFileIndex">1</span> of <span id="totalFiles">1</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div class="flex items-center mb-4">
                                 <i class="fas fa-file-pdf text-red-500 text-2xl mr-3"></i>
                                 <div>
@@ -171,18 +199,26 @@
 </div>
 
             <!-- Analysis Preview -->
+            <!--
             <div class="bg-white shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">AI Analysis Preview</h3>
                     
-                    <div id="analysisPreview" class="space-y-4">
+                    <div id="filesOverview" class="hidden mb-6">
+                        <h4 class="text-md font-medium text-gray-800 mb-3">Files Analysis Overview</h4>
+                        <div id="filesOverviewList" class="space-y-2">
+                        </div>
+                    </div>
+                    
+                    <div id="analysisPreview" class="space-y-4 hidden">
                         <div class="text-center py-8">
                             <i class="fas fa-brain text-gray-300 text-4xl mb-3"></i>
                             <p class="text-sm text-gray-500">AI analysis will appear here after upload</p>
                         </div>
                     </div>
-        </div>
+                </div>
             </div>
+            -->
         </div>
     </div>
 </div>
@@ -192,13 +228,24 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     // File upload handling
-    const fileInput = document.getElementById('file');
+    const fileInput = document.getElementById('files');
     const uploadArea = document.getElementById('uploadArea');
     const noFilePreview = document.getElementById('noFilePreview');
     const filePreview = document.getElementById('filePreview');
     const fileName = document.getElementById('fileName');
     const fileSize = document.getElementById('fileSize');
     const fileInfo = document.getElementById('fileInfo');
+    const selectedFilesList = document.getElementById('selectedFilesList');
+    const filesList = document.getElementById('filesList');
+    const filesOverview = document.getElementById('filesOverview');
+    const filesOverviewList = document.getElementById('filesOverviewList');
+    const fileNavigation = document.getElementById('fileNavigation');
+    const prevFile = document.getElementById('prevFile');
+    const nextFile = document.getElementById('nextFile');
+    const fileCounter = document.getElementById('fileInfo');
+    const fileInfoElement = document.getElementById('fileInfo');
+    const currentFileIndexElement = document.getElementById('currentFileIndex');
+    const totalFiles = document.getElementById('totalFiles');
     const pdfContainer = document.getElementById('pdfContainer');
     const pdfPlaceholder = document.getElementById('pdfPlaceholder');
     const pdfControls = document.getElementById('pdfControls');
@@ -215,10 +262,18 @@
     let pageRendering = false;
     let pageNumPending = null;
     let scale = 1.0;
+    let currentFileIndex = 0;
+    let selectedFiles = [];
+    let filesAnalysisResults = {}; // Store analysis results for each file
 
     fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
+        const files = Array.from(e.target.files);
+        selectedFiles = files;
+        currentFileIndex = 0;
+        
+        console.log('Files selected:', files.length, files);
+        
+        if (files.length > 0) {
             // Update upload area
             uploadArea.classList.remove('border-gray-300');
             uploadArea.classList.add('border-primary-400', 'bg-primary-50');
@@ -228,22 +283,47 @@
             icon.classList.add('fa-file-pdf', 'text-primary-500');
             
             const text = uploadArea.querySelector('span');
-            text.textContent = file.name;
+            if (files.length === 1) {
+                text.textContent = files[0].name;
+            } else {
+                text.textContent = `${files.length} files selected`;
+            }
             
             // Update file info
-            fileInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+            const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+            fileInfo.textContent = `${files.length} file(s) selected (${formatFileSize(totalSize)})`;
             
-            // Show preview
-            noFilePreview.classList.add('hidden');
-            filePreview.classList.remove('hidden');
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
+            // Show selected files list
+            displaySelectedFiles(files);
             
-            // Load and preview PDF
-            loadPDF(file);
-            
-            // Show analysis preview
-            showAnalysisPreview();
+            // Show preview for first file
+            if (files.length > 0) {
+                console.log('Showing preview for files');
+                noFilePreview.classList.add('hidden');
+                filePreview.classList.remove('hidden');
+                
+                // Show/hide file navigation based on number of files
+                if (files.length > 1) {
+                    fileNavigation.classList.remove('hidden');
+                    if (filesOverview) filesOverview.classList.remove('hidden');
+                    updateFilesOverview();
+                    
+                    // Auto-analyze all files
+                    analyzeAllFiles();
+                } else {
+                    fileNavigation.classList.add('hidden');
+                    if (filesOverview) filesOverview.classList.add('hidden');
+                    
+                    // Auto-analyze single file
+                    analyzeAllFiles();
+                }
+                
+                // Update file navigation after setting up
+                updateFileNavigation();
+                
+                // Load and preview first PDF
+                loadCurrentFile();
+            }
         } else {
             // Reset upload area
             uploadArea.classList.remove('border-primary-400', 'bg-primary-50');
@@ -254,16 +334,25 @@
             icon.classList.add('fa-cloud-upload-alt', 'text-gray-400');
             
             const text = uploadArea.querySelector('span');
-            text.textContent = 'Choose PDF file';
+            text.textContent = 'Choose PDF files';
             
-            fileInfo.textContent = 'No file selected';
+            fileInfo.textContent = 'No files selected';
             
-            // Hide preview
+            // Hide preview and files list
             noFilePreview.classList.remove('hidden');
             filePreview.classList.add('hidden');
+            selectedFilesList.classList.add('hidden');
+            fileNavigation.classList.add('hidden');
+            if (filesOverview) filesOverview.classList.add('hidden');
             pdfContainer.classList.add('hidden');
             pdfPlaceholder.classList.remove('hidden');
             pdfControls.classList.add('hidden');
+            
+            // Reset AI Analysis Preview
+            resetAnalysisPreview();
+            
+            // Reset analysis results
+            filesAnalysisResults = {};
         }
     });
 
@@ -290,6 +379,126 @@
             fileInput.dispatchEvent(new Event('change'));
         }
     });
+
+    // Function to display selected files
+    function displaySelectedFiles(files) {
+        console.log('Displaying selected files:', files.length);
+        selectedFilesList.classList.remove('hidden');
+        filesList.innerHTML = '';
+        
+        files.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'flex items-center justify-between p-2 bg-gray-50 rounded border';
+            fileItem.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-file-pdf text-red-500 mr-2"></i>
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">${file.name}</p>
+                        <p class="text-xs text-gray-500">${formatFileSize(file.size)}</p>
+                    </div>
+                </div>
+                <button type="button" onclick="removeFile(${index})" class="text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            filesList.appendChild(fileItem);
+        });
+        
+        // Show analysis preview for first file with pending state
+        if (files.length > 0) {
+            showAnalysisPreview();
+        }
+    }
+
+    // Function to remove a file from selection
+    function removeFile(index) {
+        console.log('Removing file at index:', index);
+        const dt = new DataTransfer();
+        const files = Array.from(fileInput.files);
+        files.splice(index, 1);
+        
+        // Adjust current file index if needed
+        if (index <= currentFileIndex && currentFileIndex > 0) {
+            currentFileIndex--;
+        } else if (index < currentFileIndex) {
+            // No change needed
+        } else if (currentFileIndex >= files.length && files.length > 0) {
+            currentFileIndex = files.length - 1;
+        }
+        
+        files.forEach(file => dt.items.add(file));
+        fileInput.files = dt.files;
+        fileInput.dispatchEvent(new Event('change'));
+        
+        // Hide analysis preview if no files left
+        if (files.length === 0) {
+            const analysisPreview = document.getElementById('analysisPreview');
+            if (analysisPreview) analysisPreview.classList.add('hidden');
+        }
+    }
+
+    // Function to load current file for preview
+    function loadCurrentFile() {
+        if (selectedFiles.length === 0) return;
+        
+        console.log('Loading current file:', currentFileIndex, selectedFiles.length);
+        const currentFile = selectedFiles[currentFileIndex];
+        console.log('Current file:', currentFile);
+        fileName.textContent = currentFile.name;
+        fileSize.textContent = formatFileSize(currentFile.size);
+        
+        // Load and preview PDF
+        loadPDF(currentFile);
+    }
+
+    // Function to update file navigation UI
+    function updateFileNavigation() {
+        console.log('Updating file navigation:', selectedFiles.length, currentFileIndex);
+        if (selectedFiles.length <= 1) {
+            fileNavigation.classList.add('hidden');
+            return;
+        }
+        
+        fileCounter.textContent = `File ${currentFileIndex + 1} of ${selectedFiles.length}`;
+        currentFileIndexElement.textContent = currentFileIndex + 1;
+        totalFiles.textContent = selectedFiles.length;
+        
+        // Update navigation buttons
+        prevFile.disabled = currentFileIndex === 0;
+        nextFile.disabled = currentFileIndex === selectedFiles.length - 1;
+        
+        console.log('Navigation updated:', {
+            fileInfo: fileInfoElement.textContent,
+            currentFileIndex: currentFileIndexElement.textContent,
+            totalFiles: totalFiles.textContent,
+            prevDisabled: prevFile.disabled,
+            nextDisabled: nextFile.disabled
+        });
+    }
+
+    // Function to go to previous file
+    function goToPreviousFile() {
+        console.log('Going to previous file:', currentFileIndex);
+        if (currentFileIndex > 0) {
+            currentFileIndex--;
+            loadCurrentFile();
+            updateFileNavigation();
+            updateFilesOverview();
+            showAnalysisPreview();
+        }
+    }
+
+    // Function to go to next file
+    function goToNextFile() {
+        console.log('Going to next file:', currentFileIndex);
+        if (currentFileIndex < selectedFiles.length - 1) {
+            currentFileIndex++;
+            loadCurrentFile();
+            updateFileNavigation();
+            updateFilesOverview();
+            showAnalysisPreview();
+        }
+    }
 
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -405,26 +614,50 @@
     }
 
     function showAnalysisPreview() {
+        const currentFile = selectedFiles[currentFileIndex];
         const analysisPreview = document.getElementById('analysisPreview');
-        analysisPreview.innerHTML = `
-            <div class="space-y-3">
-                <div class="text-center py-4">
-                    <i class="fas fa-spinner fa-spin text-blue-500 text-2xl mb-2"></i>
-                    <p class="text-sm text-gray-600">Analyzing CV with AI...</p>
-                </div>
-            </div>
-        `;
         
-        // Analyze PDF content with AI
-        analyzePDFWithAI();
+        if (!currentFile || !analysisPreview) {
+            if (analysisPreview) analysisPreview.classList.add('hidden');
+            return;
+        }
+        
+        analysisPreview.classList.remove('hidden');
+        
+        // Check if we already have analysis results for this file
+        const result = filesAnalysisResults[currentFile.name];
+        if (result && result.success) {
+            // Show existing analysis results
+            displayAnalysisResults(result.data);
+        } else if (result && !result.success) {
+            // Show error
+            displayAnalysisError(result.error);
+        } else {
+            // Show pending state
+            if (analysisPreview) {
+                analysisPreview.innerHTML = `
+                <div class="space-y-3">
+                    <div class="text-center py-4">
+                        <i class="fas fa-clock text-gray-400 text-2xl mb-2"></i>
+                        <p class="text-sm text-gray-600">Analysis Pending</p>
+                        <p class="text-xs text-gray-500 mt-1">This file is waiting to be analyzed</p>
+                    </div>
+                </div>
+            `;
+            }
+        }
     }
 
     async function analyzePDFWithAI() {
-        const fileInput = document.getElementById('file');
-        const file = fileInput.files[0];
+        if (selectedFiles.length === 0) {
+            console.log('No files selected');
+            return;
+        }
+        
+        const file = selectedFiles[currentFileIndex];
         
         if (!file) {
-            console.log('No file selected');
+            console.log('No current file');
             return;
         }
         
@@ -534,34 +767,50 @@
     }
 
     function displayAnalysisResults(data) {
+        // Clear progress interval
+        if (window.progressInterval) {
+            clearInterval(window.progressInterval);
+            window.progressInterval = null;
+        }
+        
+        // Store analysis result
+        const currentFile = selectedFiles[currentFileIndex];
+        filesAnalysisResults[currentFile.name] = {
+            success: true,
+            data: data
+        };
+        
         const analysisPreview = document.getElementById('analysisPreview');
+        if (analysisPreview) analysisPreview.classList.remove('hidden');
         
         const hasPersonalInfo = data.name && data.email && data.phone;
         const hasEducation = data.education && data.education.trim().length > 0;
         const hasExperience = data.experience && data.experience.trim().length > 0;
         const hasSkills = data.skills && data.skills.trim().length > 0;
-        
-        analysisPreview.innerHTML = `
+        if (analysisPreview) {
+            analysisPreview.innerHTML = `
             <div class="space-y-3">
-                <div class="flex items-center text-sm">
-                    <i class="fas fa-user text-gray-400 mr-2"></i>
-                    <span class="text-gray-600">Personal Information</span>
-                    ${hasPersonalInfo ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
-                </div>
-                <div class="flex items-center text-sm">
-                    <i class="fas fa-graduation-cap text-gray-400 mr-2"></i>
-                    <span class="text-gray-600">Education</span>
-                    ${hasEducation ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
-                </div>
-                <div class="flex items-center text-sm">
-                    <i class="fas fa-briefcase text-gray-400 mr-2"></i>
-                    <span class="text-gray-600">Work Experience</span>
-                    ${hasExperience ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
-                </div>
-                <div class="flex items-center text-sm">
-                    <i class="fas fa-cogs text-gray-400 mr-2"></i>
-                    <span class="text-gray-600">Skills</span>
-                    ${hasSkills ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                <div class="space-y-2">
+                    <div class="flex items-center text-sm">
+                        <i class="fas fa-user text-gray-400 mr-2"></i>
+                        <span class="text-gray-600">Personal Information</span>
+                        ${hasPersonalInfo ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                    </div>
+                    <div class="flex items-center text-sm">
+                        <i class="fas fa-graduation-cap text-gray-400 mr-2"></i>
+                        <span class="text-gray-600">Education</span>
+                        ${hasEducation ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                    </div>
+                    <div class="flex items-center text-sm">
+                        <i class="fas fa-briefcase text-gray-400 mr-2"></i>
+                        <span class="text-gray-600">Work Experience</span>
+                        ${hasExperience ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                    </div>
+                    <div class="flex items-center text-sm">
+                        <i class="fas fa-cogs text-gray-400 mr-2"></i>
+                        <span class="text-gray-600">Skills</span>
+                        ${hasSkills ? '<i class="fas fa-check text-green-500 ml-auto"></i>' : '<i class="fas fa-times text-red-500 ml-auto"></i>'}
+                    </div>
                 </div>
                 
                 ${hasPersonalInfo || hasEducation || hasExperience || hasSkills ? `
@@ -583,11 +832,27 @@
                 `}
             </div>
         `;
+        }
     }
 
     function displayAnalysisError(error) {
+        // Clear progress interval
+        if (window.progressInterval) {
+            clearInterval(window.progressInterval);
+            window.progressInterval = null;
+        }
+        
+        // Store error result
+        const currentFile = selectedFiles[currentFileIndex];
+        filesAnalysisResults[currentFile.name] = {
+            success: false,
+            error: error
+        };
+        
         const analysisPreview = document.getElementById('analysisPreview');
-        analysisPreview.innerHTML = `
+        if (analysisPreview) analysisPreview.classList.remove('hidden');
+        if (analysisPreview) {
+            analysisPreview.innerHTML = `
             <div class="space-y-3">
                 <div class="text-center py-4">
                     <i class="fas fa-exclamation-circle text-red-500 text-2xl mb-2"></i>
@@ -596,7 +861,305 @@
                 </div>
             </div>
         `;
+        }
     }
+
+    function resetAnalysisPreview() {
+        // Clear progress interval
+        if (window.progressInterval) {
+            clearInterval(window.progressInterval);
+            window.progressInterval = null;
+        }
+        
+        const analysisPreview = document.getElementById('analysisPreview');
+        if (analysisPreview) {
+            analysisPreview.classList.add('hidden');
+            if (analysisPreview) analysisPreview.innerHTML = `
+            <div class="text-center py-8">
+                <i class="fas fa-brain text-gray-300 text-4xl mb-3"></i>
+                <p class="text-sm text-gray-500">AI analysis will appear here after upload</p>
+            </div>
+        `;
+        }
+    }
+
+    async function analyzeAllFiles() {
+        console.log('Starting analysis for all files:', selectedFiles.length);
+        
+        // Show analysis preview for first file immediately
+        if (selectedFiles.length > 0) {
+            showAnalysisPreview();
+        }
+        
+        for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
+            console.log(`Analyzing file ${i + 1}/${selectedFiles.length}:`, file.name);
+            
+            try {
+                // Extract text from PDF
+                const pdfText = await extractTextFromPDF(file);
+                console.log(`PDF text extracted for ${file.name}, length:`, pdfText.length);
+                
+                // Send to AI for analysis
+                const response = await fetch('/api/analyze-cv-preview', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify({ text: pdfText })
+                });
+                
+                const result = await response.json();
+                console.log(`AI response for ${file.name}:`, result);
+                
+                if (result.success) {
+                    filesAnalysisResults[file.name] = {
+                        success: true,
+                        data: result.data
+                    };
+                } else {
+                    filesAnalysisResults[file.name] = {
+                        success: false,
+                        error: result.error
+                    };
+                }
+                
+                // Update analysis preview for current file if it's the one being analyzed
+                if (i === currentFileIndex) {
+                    showAnalysisPreview();
+                }
+                
+                
+                
+            } catch (error) {
+                console.error(`Error analyzing ${file.name}:`, error);
+                filesAnalysisResults[file.name] = {
+                    success: false,
+                    error: 'Failed to analyze CV. Please try again.'
+                };
+                
+                // Update analysis preview for current file if it's the one being analyzed
+                if (i === currentFileIndex) {
+                    showAnalysisPreview();
+                }
+            }
+        }
+        
+        console.log('All files analysis completed');
+        
+        // Update overview once after all analysis is done
+        updateFilesOverview();
+        
+        // Show analysis preview for current file after all analysis is done
+        if (selectedFiles.length > 0) {
+            showAnalysisPreview();
+        }
+        
+    }
+
+    function updateFilesOverview() {
+        if (selectedFiles.length <= 1) {
+            if (filesOverview) filesOverview.classList.add('hidden');
+            return;
+        }
+        
+        if (filesOverview) filesOverview.classList.remove('hidden');
+        if (filesOverviewList) filesOverviewList.innerHTML = '';
+        
+        selectedFiles.forEach((file, index) => {
+            const result = filesAnalysisResults[file.name];
+            const isAnalyzed = result && result.success;
+            const isCurrent = index === currentFileIndex;
+            
+            let statusIcon = 'fas fa-clock text-gray-400';
+            let statusText = 'Pending';
+            let statusColor = 'bg-gray-100 text-gray-600';
+            
+            if (isAnalyzed) {
+                const hasPersonalInfo = result.data.name && result.data.email && result.data.phone;
+                const hasEducation = result.data.education && result.data.education.trim().length > 0;
+                const hasExperience = result.data.experience && result.data.experience.trim().length > 0;
+                const hasSkills = result.data.skills && result.data.skills.trim().length > 0;
+                
+                const completedSections = [hasPersonalInfo, hasEducation, hasExperience, hasSkills].filter(Boolean).length;
+                
+                if (completedSections >= 3) {
+                    statusIcon = 'fas fa-check-circle text-green-500';
+                    statusText = 'Complete';
+                    statusColor = 'bg-green-100 text-green-700';
+                } else if (completedSections >= 2) {
+                    statusIcon = 'fas fa-exclamation-triangle text-yellow-500';
+                    statusText = 'Partial';
+                    statusColor = 'bg-yellow-100 text-yellow-700';
+                } else {
+                    statusIcon = 'fas fa-times-circle text-red-500';
+                    statusText = 'Incomplete';
+                    statusColor = 'bg-red-100 text-red-700';
+                }
+            }
+            
+            const fileItem = document.createElement('div');
+            fileItem.className = `flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isCurrent ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`;
+            fileItem.onclick = () => {
+                currentFileIndex = index;
+                loadCurrentFile();
+                updateFileNavigation();
+                updateFilesOverview();
+                showAnalysisPreview();
+            };
+            
+            fileItem.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-file-pdf text-red-500 mr-3"></i>
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">${file.name}</p>
+                        <p class="text-xs text-gray-500">${formatFileSize(file.size)}</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor} mr-2">
+                        <i class="${statusIcon} mr-1"></i>
+                        ${statusText}
+                    </span>
+                    <button onclick="event.stopPropagation(); showFileDetails(${index})" class="text-gray-400 hover:text-gray-600 ml-2">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    ${isCurrent ? '<i class="fas fa-arrow-right text-blue-500 ml-2"></i>' : ''}
+                </div>
+            `;
+            
+            if (filesOverviewList) filesOverviewList.appendChild(fileItem);
+        });
+    }
+
+    function showFileDetails(fileIndex) {
+        const file = selectedFiles[fileIndex];
+        const result = filesAnalysisResults[file.name];
+        
+        if (!result || !result.success) {
+            return;
+        }
+        
+        const data = result.data;
+        const hasPersonalInfo = data.name && data.email && data.phone;
+        const hasEducation = data.education && data.education.trim().length > 0;
+        const hasExperience = data.experience && data.experience.trim().length > 0;
+        const hasSkills = data.skills && data.skills.trim().length > 0;
+        
+        const completedSections = [hasPersonalInfo, hasEducation, hasExperience, hasSkills].filter(Boolean).length;
+        
+        let statusText = '';
+        let statusColor = '';
+        
+        if (completedSections >= 3) {
+            statusText = 'Complete';
+            statusColor = 'text-green-600';
+        } else if (completedSections >= 2) {
+            statusText = 'Partial';
+            statusColor = 'text-yellow-600';
+        } else {
+            statusText = 'Incomplete';
+            statusColor = 'text-red-600';
+        }
+        
+        const detailsHtml = `
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-900">Chi tiết phân tích: ${file.name}</h3>
+                            <button onclick="closeFileDetails()" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusColor}">
+                                <i class="fas fa-${completedSections >= 3 ? 'check-circle' : completedSections >= 2 ? 'exclamation-triangle' : 'times-circle'} mr-2"></i>
+                                ${statusText} (${completedSections}/4 sections)
+                            </span>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex items-center">
+                                    <i class="fas fa-user text-gray-400 mr-3"></i>
+                                    <span class="text-sm font-medium text-gray-700">Personal Information</span>
+                                </div>
+                                <div class="flex items-center">
+                                    ${hasPersonalInfo ? 
+                                        '<i class="fas fa-check text-green-500 mr-2"></i><span class="text-sm text-green-600">Complete</span>' : 
+                                        '<i class="fas fa-times text-red-500 mr-2"></i><span class="text-sm text-red-600">Missing</span>'
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex items-center">
+                                    <i class="fas fa-graduation-cap text-gray-400 mr-3"></i>
+                                    <span class="text-sm font-medium text-gray-700">Education</span>
+                                </div>
+                                <div class="flex items-center">
+                                    ${hasEducation ? 
+                                        '<i class="fas fa-check text-green-500 mr-2"></i><span class="text-sm text-green-600">Complete</span>' : 
+                                        '<i class="fas fa-times text-red-500 mr-2"></i><span class="text-sm text-red-600">Missing</span>'
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex items-center">
+                                    <i class="fas fa-briefcase text-gray-400 mr-3"></i>
+                                    <span class="text-sm font-medium text-gray-700">Work Experience</span>
+                                </div>
+                                <div class="flex items-center">
+                                    ${hasExperience ? 
+                                        '<i class="fas fa-check text-green-500 mr-2"></i><span class="text-sm text-green-600">Complete</span>' : 
+                                        '<i class="fas fa-times text-red-500 mr-2"></i><span class="text-sm text-red-600">Missing</span>'
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex items-center">
+                                    <i class="fas fa-cogs text-gray-400 mr-3"></i>
+                                    <span class="text-sm font-medium text-gray-700">Skills</span>
+                                </div>
+                                <div class="flex items-center">
+                                    ${hasSkills ? 
+                                        '<i class="fas fa-check text-green-500 mr-2"></i><span class="text-sm text-green-600">Complete</span>' : 
+                                        '<i class="fas fa-times text-red-500 mr-2"></i><span class="text-sm text-red-600">Missing</span>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p class="text-sm text-blue-700">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                File này có ${completedSections} trong 4 tiêu chí cần thiết. 
+                                ${completedSections >= 3 ? 'File đạt yêu cầu tốt!' : completedSections >= 2 ? 'File cần cải thiện thêm một số thông tin.' : 'File cần bổ sung nhiều thông tin hơn.'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', detailsHtml);
+    }
+    
+    function closeFileDetails() {
+        const modal = document.querySelector('.fixed.inset-0');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    // File navigation controls
+    prevFile.addEventListener('click', goToPreviousFile);
+    nextFile.addEventListener('click', goToNextFile);
 
     // PDF controls
     prevPage.addEventListener('click', function() {
@@ -644,11 +1207,17 @@
     // Form submission with loading state
     document.getElementById('cvForm').addEventListener('submit', function(e) {
         const submitBtn = this.querySelector('button[type="submit"]');
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Analyzing CV...';
-        submitBtn.disabled = true;
+        const fileCount = fileInput.files.length;
         
-        // Show processing toast
-        showToast('Processing CV with AI... This may take a moment.', 'info', 5000);
+        if (fileCount === 1) {
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Analyzing CV...';
+            showToast('Processing CV with AI... This may take a moment.', 'info', 5000);
+        } else {
+            submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Analyzing ${fileCount} CVs...`;
+            showToast(`Processing ${fileCount} CVs with AI... This may take a moment.`, 'info', 5000);
+        }
+        
+        submitBtn.disabled = true;
 });
 </script>
 {% endblock %}
